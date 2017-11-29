@@ -14,7 +14,7 @@ object MatrixUtils {
    * 
    */
       def coordinateMatrixMultiply(leftMatrix: CoordinateMatrix, rightMatrix: CoordinateMatrix): CoordinateMatrix = {
-          val M_ = leftMatrix.entries.map({ case MatrixEntry(i, j, v) => (j, (i, v)) })
+          val M_ = leftMatrix.entries.map({ case MatrixEntry(i, j, v) => (i, (j, v)) })
           val N_ = rightMatrix.entries.map({ case MatrixEntry(j, k, w) => (j, (k, w)) })
         
           val productEntries = M_
@@ -25,6 +25,37 @@ object MatrixUtils {
         
           new CoordinateMatrix(productEntries)
     }
+      
+       /**
+         * 
+         * Naive implementatiom to sum sparse Matrix in Spark
+         * 
+         */
+      
+      def coordinateMatrixSum(leftMatrix: CoordinateMatrix, rightMatrix: CoordinateMatrix): CoordinateMatrix = {
+        
+        if( (leftMatrix.numCols() !=  rightMatrix.numCols()) || (leftMatrix.numCols() !=  rightMatrix.numCols()) ){
+          throw new IllegalArgumentException("Both Matrices need to have the same number of rows and columns")
+        }
+        
+          val M_ = leftMatrix.entries.map({ case MatrixEntry(i, j, v) => ((i, j), v) })
+          val N_ = rightMatrix.entries.map({ case MatrixEntry(j, k, w) => ((j, k), w) })
+        
+          val productEntries = M_
+            .join(N_)
+            .map({ case ((i,j), (v,w)) => ((i,j),(v+w)) })
+            .reduceByKey(_ + _)
+            .map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
+        
+          new CoordinateMatrix(productEntries)
+    }
+      
+      def coordinateMatrixDivide(leftMatrix: CoordinateMatrix, rightMatrix: CoordinateMatrix): CoordinateMatrix = {
+        val inverse_rightMatrix = new CoordinateMatrix(rightMatrix.entries.map{x => new MatrixEntry(x.i,x.j,1/x.value)})
+        
+        coordinateMatrixMultiply(leftMatrix,inverse_rightMatrix)
+        
+      }
       
       
         def transpose(m: Array[Array[Double]]): Array[Array[Double]] = {
@@ -47,6 +78,26 @@ object MatrixUtils {
               Vectors.dense(s)
           }
           
+        }
+        
+         /**
+         * 
+         * Multiply all numbers
+         * 
+         */
+        def multiplyMatrixByNumber(m: CoordinateMatrix, n : Double): CoordinateMatrix = {
+            new CoordinateMatrix(m.entries.map{x => new MatrixEntry(x.i,x.j,x.value * n)})
+
+        }
+        
+         /**
+         * 
+         * Divide all numbers
+         * 
+         */
+        def divideMatrixByNumber(m: CoordinateMatrix, n : Double): CoordinateMatrix = {
+            new CoordinateMatrix(m.entries.map{x => new MatrixEntry(x.i,x.j,x.value / n)})
+
         }
       
       
