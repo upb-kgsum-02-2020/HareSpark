@@ -77,11 +77,6 @@ object Hare2 {
      val final_matrix = edges_rdd.map{x => (map_nodes_broadcast.value(x(0)),map_nodes_broadcast.value(x(1))) }
      val map_edges_triples = final_matrix.groupBy(x => x._1).sortByKey(true).zipWithIndex()
      val map_edges_entities = final_matrix.groupBy(x => x._2).sortByKey(true).zipWithIndex()
-                       
-     
-     val total_nodes_broadcast = sc.broadcast(nodes_rdd.collect().length)
-     val total_entities_broadcast = sc.broadcast(entities_rdd.collect().length)
-     val total_triples_broadcast = sc.broadcast(triples_rdd.collect().length)
      
      
      val e = ListMap(entities_rdd.map{ s => s.swap }.collectAsMap().toSeq.sortBy(_._1):_*)
