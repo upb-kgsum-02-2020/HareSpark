@@ -13,17 +13,17 @@ object MatrixUtils {
    * Naive implementatiom to multiply sparse Matrix in Spark
    * 
    */
-      def coordinateMatrixMultiply(leftMatrix: CoordinateMatrix, rightMatrix: CoordinateMatrix): CoordinateMatrix = {
-          val M_ = leftMatrix.entries.map({ case MatrixEntry(i, j, v) => (i, (j, v)) })
-          val N_ = rightMatrix.entries.map({ case MatrixEntry(j, k, w) => (j, (k, w)) })
-        
-          val productEntries = M_
-            .join(N_)
-            .map({ case (_, ((i, v), (k, w))) => ((i, k), (v * w)) })
-            .reduceByKey(_ + _)
-            .map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
-        
-          new CoordinateMatrix(productEntries)
+    def coordinateMatrixMultiply(leftMatrix: CoordinateMatrix, rightMatrix: CoordinateMatrix): CoordinateMatrix = {
+      val M_ = leftMatrix.entries.map({ case MatrixEntry(i, j, v) => (j, (i, v)) })
+      val N_ = rightMatrix.entries.map({ case MatrixEntry(j, k, w) => (j, (k, w)) })
+    
+      val productEntries = M_
+        .join(N_)
+        .map({ case (_, ((i, v), (k, w))) => ((i, k), (v * w)) })
+        .reduceByKey(_ + _)
+        .map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
+    
+      new CoordinateMatrix(productEntries)
     }
       
        /**
