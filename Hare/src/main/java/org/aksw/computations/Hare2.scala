@@ -32,8 +32,8 @@ object Hare2 {
 //    val hdfs = org.apache.hadoop.fs.FileSystem.get(new java.net.URI("hdfs://localhost:9000"), hadoopConf)
 //    try { hdfs.delete(new org.apache.hadoop.fs.Path("src/main/resources/result.txt"), true) } catch { case _ : Throwable => { } }
     
-//    val rdd = sc.textFile("src/main/resources/sample_triples.nt")
-    val rdd = sc.textFile("/home/gsjunior/Downloads/airports.nt")
+    val rdd = sc.textFile("src/main/resources/sample_triples.nt")
+//    val rdd = sc.textFile("/home/gsjunior/Downloads/airports.nt")
     
     //Creating rdd's for nodes
     val nodes_triples_rdd = rdd.map(x => x.replaceAll("\\s+", "-"))
@@ -141,7 +141,7 @@ object Hare2 {
       val p_t = MatrixUtils.coordinateMatrixMultiply(w, f)    
       val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
       
-      val s_n_v = map_edges_entities.count()
+      val s_n_v = entities_map.value.size
       
       val s_i = f.numCols().toDouble / (w.numCols().toDouble * (f.numCols().toDouble + w.numCols().toDouble))
       
@@ -162,11 +162,11 @@ object Hare2 {
       while( distance > epsilon){
         s_n_previous = s_n_final
         
-        s_n_final = MatrixUtils.coordinateMatrixSum(
-          MatrixUtils.coordinateMatrixMultiply(MatrixUtils.multiplyMatrixByNumber(p_n, df),s_n_previous),
+          s_n_final = MatrixUtils.coordinateMatrixSum(
+          MatrixUtils.coordinateMatrixMultiply(MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose(),s_n_previous),
           MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble))
           
-          s_t_final = MatrixUtils.coordinateMatrixMultiply(f, s_n_final)
+          s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
           
           val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
           val v2 = s_n_previous.transpose().toRowMatrix().rows.collect()(0)
@@ -178,29 +178,6 @@ object Hare2 {
       s_n_final.toRowMatrix().rows.repartition(1).saveAsTextFile("src/main/resources/s_n.txt")
       s_t_final.toRowMatrix().rows.repartition(1).saveAsTextFile("src/main/resources/s_t.txt")
       
-//      println("Tamanho 1: " + s_t_initial.transpose().toRowMatrix().rows.collect().size)
-//      println("Tamanho 2: " + s_n_final.transpose().toRowMatrix().rows.collect().size)
-//      println("s_t_initial: " + s_n_initial.numRows())
-//      println("s_n_final: " + s_n_final.numRows())
-//      
-//      val v1 = s_t_final.transpose().toRowMatrix().rows.collect()(0)
-//      val v2 = s_n_initial.transpose().toRowMatrix().rows.collect()(0)
-//      
-//      println("distancia: " + Vectors.sqdist(v1, v2))
-      
-//      println(MLUtils.s
-      
-      
-      
-      
-//     
-      
-      
-
-     
-//     s_t.rows.repartition(1).saveAsTextFile("src/main/resources/s_t.txt")
-//     s_n.rows.repartition(1).saveAsTextFile("src/main/resources/s_n.txt")
-//     s_n_final.rows.repartition(1).saveAsTextFile("src/main/resources/s_n_final.txt")
 
   }
   

@@ -10,7 +10,7 @@ object MatrixUtils {
   
   /**
    * 
-   * Naive implementatiom to multiply sparse Matrix in Spark
+   * Naive implementation to multiply sparse Matrix in Spark
    * 
    */
       def coordinateMatrixMultiply(leftMatrix: CoordinateMatrix, rightMatrix: CoordinateMatrix): CoordinateMatrix = {
