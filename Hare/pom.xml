@@ -85,31 +85,6 @@
 		    <scope>provided</scope>
 		</dependency>
 			
-			
-		<!-- https://mvnrepository.com/artifact/net.sansa-stack/sansa-rdf-spark-core_2.11 -->
-		<dependency>
-		    <groupId>net.sansa-stack</groupId>
-		    <artifactId>sansa-rdf-spark-core_2.11</artifactId>
-		    <version>0.2.0</version>
-		</dependency>
-				
-				<!-- https://mvnrepository.com/artifact/net.sansa-stack/sansa-rdf-spark-utils_2.11 -->
-		<dependency>
-		    <groupId>net.sansa-stack</groupId>
-		    <artifactId>sansa-rdf-spark-utils_2.11</artifactId>
-		    <version>0.2.0</version>
-		</dependency>
-				
-				<!-- https://mvnrepository.com/artifact/net.sansa-stack/sansa-rdf-partition-core_2.11 -->
-		<dependency>
-		    <groupId>net.sansa-stack</groupId>
-		    <artifactId>sansa-rdf-partition-core_2.11</artifactId>
-		    <version>0.2.0</version>
-		</dependency>
-		
-	
-	
-		
   </dependencies>
   
 
