@@ -20,7 +20,8 @@ import org.apache.spark.ml.feature.StringIndexer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.rdd.RDD
 
-object Hare2 {
+
+object Hare3 {
   
   
   val df = 0.85
@@ -58,11 +59,23 @@ object Hare2 {
       
       val s_i = f.numCols().toDouble / (w.numCols().toDouble * (f.numCols().toDouble + w.numCols().toDouble))
       
-      var s_n_final = new CoordinateMatrix(map_edges_resources.map{ x=> 
-        new MatrixEntry(x._2,1,s_i)})
-               
-      val matrix_i = new CoordinateMatrix(map_edges_resources.map{ x=> 
-        new MatrixEntry(x._2,1,1)})
+//      var s_n_final = new CoordinateMatrix(map_edges_resources.map{ x=> 
+//        new MatrixEntry(x._2,1,s_i)})
+//      var s_n_final = new CoordinateMatrix(f_rdd.map{ x=> 
+//        new MatrixEntry(x.split(",")(0).toLong,0,s_i)})
+      
+
+      
+      val t = f.entries.map(f => f.i).distinct().sortBy(f =>f,true)
+      
+      var s_n_final = new CoordinateMatrix(t.map{ x=> 
+        new MatrixEntry(x,0,s_i)})
+    
+         
+         
+      val matrix_i = new CoordinateMatrix(t.map{ x=> 
+        new MatrixEntry(x,0,1)})
+      
       
       var s_t_final = s_n_final
       
@@ -75,10 +88,11 @@ object Hare2 {
       while( distance > epsilon){
           s_n_previous = s_n_final
         
-          s_n_final = MatrixUtils.coordinateMatrixSum(
-          MatrixUtils.coordinateMatrixMultiply(MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose(),s_n_previous),
-          MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble))
           
+          val a = MatrixUtils.coordinateMatrixMultiply(MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose(),s_n_previous).toBlockMatrix()
+          val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble).toBlockMatrix()
+          
+          s_n_final = a.add(b).toCoordinateMatrix()
           
           
           val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
