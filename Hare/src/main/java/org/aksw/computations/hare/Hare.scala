@@ -1,4 +1,4 @@
-package org.aksw.computations
+package org.aksw.computations.hare
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext

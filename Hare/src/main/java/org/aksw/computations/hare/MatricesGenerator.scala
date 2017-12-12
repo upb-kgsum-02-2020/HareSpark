@@ -1,14 +1,14 @@
-package org.aksw.computations
+package org.aksw.computations.hare
 
 import scala.collection.immutable.ListMap
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.mllib.linalg.distributed.MatrixEntry
 
-object MatricesGenerator2 {
+object MatricesGenerator {
   
 //  /home/gsjunior/Downloads
-//  var sourcePath = "src/main/resources/sample_triples.nt"
-  var sourcePath = "/home/gsjunior/Documentos/datasets/airports.nt"
+  var sourcePath = "src/main/resources/sample_triples.nt"
+//  var sourcePath = "/home/gsjunior/Downloads/airports.nt"
   var w_dest = "src/main/resources/matrices/sample_triples/w.txt"
   var f_dest = "src/main/resources/matrices/sample_triples/f.txt"
   var edges_triples_dest = "src/main/resources/matrices/sample_triples/edges_triples.txt"
@@ -79,44 +79,61 @@ object MatricesGenerator2 {
      val count_triples = map_edges_triples.count
      val count_resources = map_edges_resources.count
      
-
+     val e = ListMap(entities_rdd.map{ s => s.swap }.collectAsMap().toSeq.sortBy(_._1):_*)
+     val t = ListMap(triples_rdd.map{ c => c.swap }.collectAsMap().toSeq.sortBy(_._1):_*)
+     
+     val entities_map = sc.broadcast(e)
+     val triples_map = sc.broadcast(t)
      
 
        
-     val w_rdd = map_edges_triples.map{
+       var w_rdd = map_edges_triples.map{
                x=>     
                val p = 1.0 / x._1._2.size.toDouble
-
+//               val row = new Array[Double](entities_map.value.size)
                val values = x._1._2.toArray
+               var cont = 0
                
-               val me = new Array[MatrixEntry](values.size)
-              for(a<- 0 to values.size-1){
-                     val matrixEntry = new MatrixEntry(values(a)._1.toLong,values(a)._2.toLong,p)
-                     me(a) = matrixEntry
-                   }
-                 
-               
+               val me = new Array[MatrixEntry](entities_map.value.size)
 
-               me
-         }.flatMap(f => f).filter(f => f != null)
+               for ((k,v) <- entities_map.value){
+                 
+                   if(values.contains(x._1._1,k)){
+                       val matrixEntry = new MatrixEntry(x._2,cont,p)
+                       me(cont) = matrixEntry
+                     }else{
+                       val matrixEntry = new MatrixEntry(x._2,cont,0.0)
+                       me(cont) = matrixEntry
+                     }
+                   cont = cont+1
+               }
+
+                me
+     }.flatMap(f => f)
      
 
-     val f_rdd = map_edges_resources.map{
-               x=>     
-               val p = 1.0 / x._1._2.size.toDouble
-
-               val values = x._1._2.toArray
-               
-               val me = new Array[MatrixEntry](values.size)
-              for(a<- 0 to values.size-1){
-                     val matrixEntry = new MatrixEntry(values(a)._2.toLong,values(a)._1.toLong,p)
-                     me(a) = matrixEntry
-                   }
+     var f_rdd = map_edges_resources.map{
+               x=> 
+                 val p = 1.0 / x._1._2.size.toDouble
                  
-               
-
-               me
-         }.flatMap(f => f).filter(f => f != null)
+                 val me = new Array[MatrixEntry](triples_map.value.size)
+                 val values = x._1._2.toArray 
+                 var cont = 0
+                 
+                   for ((k,v) <- triples_map.value){
+                 
+                       if(values.contains(k,x._1._1)){
+                         val matrixEntry = new MatrixEntry(x._2,cont,p)
+                           me(cont) = matrixEntry
+                         }else{
+                           val matrixEntry = new MatrixEntry(x._2,cont,0)
+                           me(cont) = matrixEntry
+                         
+                         }
+                       cont = cont+1
+                   }
+                me
+               }.flatMap(f => f)
                
       val w = w_rdd.map{ x => x.i + "," + x.j + "," + x.value}
       val f = f_rdd.map{ x => x.i + "," + x.j + "," + x.value}

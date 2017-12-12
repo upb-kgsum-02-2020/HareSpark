@@ -1,4 +1,4 @@
-package org.aksw.computations
+package org.aksw.computations.hare
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
@@ -19,6 +19,7 @@ import org.apache.spark.mllib.linalg.distributed.CoordinateMatrix
 import org.apache.spark.ml.feature.StringIndexer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.rdd.RDD
+import scala.collection.mutable.ListBuffer
 
 
 object Hare3 {
@@ -26,9 +27,13 @@ object Hare3 {
   
   val df = 0.85
   
-  var w_path = "src/main/resources/matrices/sample_triples/w.txt"
-  var f_path = "src/main/resources/matrices/sample_triples/f.txt"
-  var map_edges_resources_dest = "src/main/resources/matrices/sample_triples/edges_resources.txt"
+  var w_path = "/matrices/w.txt"
+  var f_path = "/matrices/f.txt"
+  var map_edges_resources_dest = "/matrices/edges_resources.txt"
+  var s_n_dest = "/results/s_n.txt"
+  var s_t_dest = "/results/s_t.txt"
+  var statistics_dest = "/statistics/hare_statistics.txt"
+  
   
   def main(args: Array[String]): Unit = {
     
@@ -39,7 +44,13 @@ object Hare3 {
       .getOrCreate()
       
     import spark.implicits._
-    
+      
+       w_path = args(0) + w_path
+       f_path = args(0) + f_path
+       map_edges_resources_dest = args(0) + map_edges_resources_dest
+       s_n_dest = args(0) + s_n_dest
+       s_t_dest = args(0) + s_t_dest
+       statistics_dest = args(0) + statistics_dest
     
       val sc = spark.sparkContext
       
@@ -47,7 +58,8 @@ object Hare3 {
       val f_rdd = sc.textFile(f_path)
       
       val map_edges_resources = sc.textFile(map_edges_resources_dest).map(f => (f.split(",")(0).toLong,f.split(",")(1).toLong))
-               
+       
+      val t1 = System.currentTimeMillis()
                
       val w = loadCoordinateMatrix(w_rdd)
       val f = loadCoordinateMatrix(f_rdd)
@@ -76,36 +88,47 @@ object Hare3 {
       val matrix_i = new CoordinateMatrix(t.map{ x=> 
         new MatrixEntry(x,0,1)})
       
+      val matrixLoadTime = (System.currentTimeMillis() - t1) / 1000
       
       var s_t_final = s_n_final
       
       var s_n_previous = s_n_final
       
-      val epsilon = 1e-3
+      val epsilon = 0.001
       var distance = 1.toDouble
       
-      
+      val t2 = System.currentTimeMillis()
+      var iter = 0
       while( distance > epsilon){
           s_n_previous = s_n_final
-        
           
-          val a = MatrixUtils.coordinateMatrixMultiply(MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose(),s_n_previous).toBlockMatrix()
-          val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble).toBlockMatrix()
-          
-          s_n_final = a.add(b).toCoordinateMatrix()
-          
-          
+          s_n_final = MatrixUtils.coordinateMatrixSum(
+          MatrixUtils.coordinateMatrixMultiply(MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose(),s_n_previous),
+          MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble))
+         
           val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
           val v2 = s_n_previous.transpose().toRowMatrix().rows.collect()(0)
       
           distance = Vectors.sqdist(v1, v2)
+          iter = iter+1
         
       }
+    
+     
       s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
       
-      s_n_final.toRowMatrix().rows.repartition(1).saveAsTextFile("src/main/resources/s_n.txt")
-      s_t_final.toRowMatrix().rows.repartition(1).saveAsTextFile("src/main/resources/s_t.txt")
+      s_n_final.toRowMatrix().rows.saveAsTextFile(s_n_dest)
+      s_t_final.toRowMatrix().rows.saveAsTextFile(s_t_dest)
       
+      val hareTime = (System.currentTimeMillis() - t2) / 1000
+      
+      val statistics = new ListBuffer[String]()
+      statistics += "Iterations: " + iter
+      statistics += "Matrices Load Time: " + matrixLoadTime
+      statistics += "Hare Computation Time: " + matrixLoadTime
+      
+      val rdd_statistics = sc.parallelize(statistics)
+      rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
 
   }
   

@@ -1,18 +1,27 @@
-package org.aksw.computations
+package org.aksw.computations.hare
 
 import scala.collection.immutable.ListMap
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.mllib.linalg.distributed.MatrixEntry
+import scala.collection.mutable.ListBuffer
 
-object MatricesGenerator {
+object MatricesGenerator2 {
   
 //  /home/gsjunior/Downloads
-  var sourcePath = "src/main/resources/sample_triples.nt"
-//  var sourcePath = "/home/gsjunior/Downloads/airports.nt"
-  var w_dest = "src/main/resources/matrices/sample_triples/w.txt"
-  var f_dest = "src/main/resources/matrices/sample_triples/f.txt"
-  var edges_triples_dest = "src/main/resources/matrices/sample_triples/edges_triples.txt"
-  var edges_resources_dest = "src/main/resources/matrices/sample_triples/edges_resources.txt"
+//  var sourcePath = "src/main/resources/sample_triples.nt"
+//  var sourcePath = "/home/gsjunior/Documentos/datasets/airports.nt"
+//  var w_dest = "src/main/resources/matrices/sample_triples/w.txt"
+//  var f_dest = "src/main/resources/matrices/sample_triples/f.txt"
+//  var edges_triples_dest = "src/main/resources/matrices/sample_triples/edges_triples.txt"
+//  var edges_resources_dest = "src/main/resources/matrices/sample_triples/edges_resources.txt"
+  
+  var sourcePath = ""
+  var w_dest = "/matrices/w.txt"
+  var f_dest = "/matrices/f.txt"
+  var edges_triples_dest = "/matrices/edges_triples.txt"
+  var edges_resources_dest = "/matrices/edges_resources.txt"
+  var statistics_dest = "/statistics/statistics.txt"
+
   
   def main(args: Array[String]): Unit = {
     
@@ -24,10 +33,19 @@ object MatricesGenerator {
       
     import spark.implicits._
     
+    sourcePath = args(0) + sourcePath
+    w_dest = args(1) + w_dest
+    f_dest = args(1) + f_dest
+    edges_triples_dest = args(1) + edges_triples_dest
+    edges_resources_dest = args(1) + edges_resources_dest
+    statistics_dest = args(1) + statistics_dest
+    
     
     val sc = spark.sparkContext
 
     val rdd = sc.textFile(sourcePath)
+    
+    val t1 = System.currentTimeMillis()
     
     //Creating rdd's for nodes
     val nodes_triples_rdd = rdd.map(x => x.replaceAll("\\s+", "-"))
@@ -79,73 +97,75 @@ object MatricesGenerator {
      val count_triples = map_edges_triples.count
      val count_resources = map_edges_resources.count
      
-     val e = ListMap(entities_rdd.map{ s => s.swap }.collectAsMap().toSeq.sortBy(_._1):_*)
-     val t = ListMap(triples_rdd.map{ c => c.swap }.collectAsMap().toSeq.sortBy(_._1):_*)
+     val parseTime = (System.currentTimeMillis() - t1) / 1000
      
-     val entities_map = sc.broadcast(e)
-     val triples_map = sc.broadcast(t)
-     
-
+     val t2 = System.currentTimeMillis()
        
-       var w_rdd = map_edges_triples.map{
+     val w_rdd = map_edges_triples.map{
                x=>     
                val p = 1.0 / x._1._2.size.toDouble
-//               val row = new Array[Double](entities_map.value.size)
+
                val values = x._1._2.toArray
-               var cont = 0
                
-               val me = new Array[MatrixEntry](entities_map.value.size)
-
-               for ((k,v) <- entities_map.value){
+               val me = new Array[MatrixEntry](values.size)
+              for(a<- 0 to values.size-1){
+                     val matrixEntry = new MatrixEntry(values(a)._1.toLong,values(a)._2.toLong,p)
+                     me(a) = matrixEntry
+                   }
                  
-                   if(values.contains(x._1._1,k)){
-                       val matrixEntry = new MatrixEntry(x._2,cont,p)
-                       me(cont) = matrixEntry
-                     }else{
-                       val matrixEntry = new MatrixEntry(x._2,cont,0.0)
-                       me(cont) = matrixEntry
-                     }
-                   cont = cont+1
-               }
+               
 
-                me
-     }.flatMap(f => f)
+               me
+         }.flatMap(f => f).filter(f => f != null)
      
 
-     var f_rdd = map_edges_resources.map{
-               x=> 
-                 val p = 1.0 / x._1._2.size.toDouble
-                 
-                 val me = new Array[MatrixEntry](triples_map.value.size)
-                 val values = x._1._2.toArray 
-                 var cont = 0
-                 
-                   for ((k,v) <- triples_map.value){
-                 
-                       if(values.contains(k,x._1._1)){
-                         val matrixEntry = new MatrixEntry(x._2,cont,p)
-                           me(cont) = matrixEntry
-                         }else{
-                           val matrixEntry = new MatrixEntry(x._2,cont,0)
-                           me(cont) = matrixEntry
-                         
-                         }
-                       cont = cont+1
+     val f_rdd = map_edges_resources.map{
+               x=>     
+               val p = 1.0 / x._1._2.size.toDouble
+
+               val values = x._1._2.toArray
+               
+               val me = new Array[MatrixEntry](values.size)
+              for(a<- 0 to values.size-1){
+                     val matrixEntry = new MatrixEntry(values(a)._2.toLong,values(a)._1.toLong,p)
+                     me(a) = matrixEntry
                    }
-                me
-               }.flatMap(f => f)
+                 
+               
+
+               me
+         }.flatMap(f => f).filter(f => f != null)
                
       val w = w_rdd.map{ x => x.i + "," + x.j + "," + x.value}
       val f = f_rdd.map{ x => x.i + "," + x.j + "," + x.value}
+      
+      
        
-           w.repartition(1).saveAsTextFile(w_dest)
-           f.repartition(1).saveAsTextFile(f_dest)
+           w.saveAsTextFile(w_dest)
+           f.saveAsTextFile(f_dest)
+      
+      
+           
            
       val map_triples = map_edges_triples.map(f => f._1._1 + "," + f._2)
       val map_resources = map_edges_resources.map(f => f._1._1 + "," + f._2)
+      
+     
            
-           map_triples.repartition(1).saveAsTextFile(edges_triples_dest)
-           map_resources.repartition(1).saveAsTextFile(edges_resources_dest)
+      map_triples.saveAsTextFile(edges_triples_dest)
+      map_resources.saveAsTextFile(edges_resources_dest)
+      
+      val matrixTime = (System.currentTimeMillis() - t2) / 1000
+      
+      val statistics = new ListBuffer[String]()
+      statistics += "Number of Triples: " + count_triples
+      statistics += "Number of Entities: " + count_resources
+      statistics += "Parsing File Time: " + parseTime
+      statistics += "Matrix Generation Time: " + matrixTime
+      
+      val rdd_statistics = sc.parallelize(statistics)
+      rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
+      
   }
   
 }
