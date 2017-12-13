@@ -20,6 +20,7 @@ import org.apache.spark.ml.feature.StringIndexer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.rdd.RDD
 import scala.collection.mutable.ListBuffer
+import java.math.BigDecimal
 
 
 object Hare3 {
@@ -40,7 +41,6 @@ object Hare3 {
     val spark = SparkSession
       .builder()
       .appName("HareImpl")
-      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -71,11 +71,6 @@ object Hare3 {
       
       val s_i = f.numCols().toDouble / (w.numCols().toDouble * (f.numCols().toDouble + w.numCols().toDouble))
       
-//      var s_n_final = new CoordinateMatrix(map_edges_resources.map{ x=> 
-//        new MatrixEntry(x._2,1,s_i)})
-//      var s_n_final = new CoordinateMatrix(f_rdd.map{ x=> 
-//        new MatrixEntry(x.split(",")(0).toLong,0,s_i)})
-      
 
       
       val t = f.entries.map(f => f.i).distinct().sortBy(f =>f,true)
@@ -94,12 +89,13 @@ object Hare3 {
       
       var s_n_previous = s_n_final
       
-      val epsilon = 0.001
-      var distance = 1.toDouble
+      
+      val epsilon = new BigDecimal(0.0001)
+      var distance = new BigDecimal(1)
       
       val t2 = System.currentTimeMillis()
       var iter = 0
-      while( distance > epsilon){
+      while( distance.compareTo(epsilon) == 1 ){
           s_n_previous = s_n_final
           
           s_n_final = MatrixUtils.coordinateMatrixSum(
@@ -109,7 +105,7 @@ object Hare3 {
           val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
           val v2 = s_n_previous.transpose().toRowMatrix().rows.collect()(0)
       
-          distance = Vectors.sqdist(v1, v2)
+          distance = new BigDecimal(Vectors.sqdist(v1, v2))
           iter = iter+1
         
       }
@@ -129,6 +125,9 @@ object Hare3 {
       
       val rdd_statistics = sc.parallelize(statistics)
       rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
+      
+      println("Distance: " + distance)
+      println("Iterations: " + iter)
 
   }
   
