@@ -21,6 +21,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.rdd.RDD
 import scala.collection.mutable.ListBuffer
 import java.math.BigDecimal
+import org.apache.commons.math3.ml.distance.EuclideanDistance
 
 
 object Hare3 {
@@ -41,6 +42,7 @@ object Hare3 {
     val spark = SparkSession
       .builder()
       .appName("HareImpl")
+      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -90,11 +92,12 @@ object Hare3 {
       var s_n_previous = s_n_final
       
       
-      val epsilon = new BigDecimal(0.0001)
+      val epsilon = new BigDecimal(0.001)
       var distance = new BigDecimal(1)
       
       val t2 = System.currentTimeMillis()
       var iter = 0
+      val ed = new EuclideanDistance
       while( distance.compareTo(epsilon) == 1 ){
           s_n_previous = s_n_final
           
@@ -105,7 +108,7 @@ object Hare3 {
           val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
           val v2 = s_n_previous.transpose().toRowMatrix().rows.collect()(0)
       
-          distance = new BigDecimal(Vectors.sqdist(v1, v2))
+          distance = new BigDecimal(ed.compute(v1.toArray, v2.toArray))
           iter = iter+1
         
       }
