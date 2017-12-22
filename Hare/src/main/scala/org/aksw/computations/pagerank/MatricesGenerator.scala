@@ -26,7 +26,7 @@ object MatricesGenerator {
     val spark = SparkSession
       .builder()
       .appName("MatrixGenerator")
-      .master("local[*]")
+//      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._

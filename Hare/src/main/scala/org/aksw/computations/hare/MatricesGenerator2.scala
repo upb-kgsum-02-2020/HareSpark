@@ -28,7 +28,6 @@ object MatricesGenerator2 {
     val spark = SparkSession
       .builder()
       .appName("MatrixGenerator")
-      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -141,8 +140,8 @@ object MatricesGenerator2 {
       
       
        
-           w.repartition(1).saveAsTextFile(w_dest)
-           f.repartition(1).saveAsTextFile(f_dest)
+           w.saveAsTextFile(w_dest)
+           f.saveAsTextFile(f_dest)
       
       
            

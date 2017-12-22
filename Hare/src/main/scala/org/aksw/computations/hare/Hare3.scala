@@ -42,7 +42,7 @@ object Hare3 {
     val spark = SparkSession
       .builder()
       .appName("HareImpl")
-      .master("local[*]")
+//      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -55,6 +55,7 @@ object Hare3 {
        statistics_dest = args(0) + statistics_dest
     
       val sc = spark.sparkContext
+     
       
       val w_rdd = sc.textFile(w_path)
       val f_rdd = sc.textFile(f_path)
@@ -124,7 +125,7 @@ object Hare3 {
       val statistics = new ListBuffer[String]()
       statistics += "Iterations: " + iter
       statistics += "Matrices Load Time: " + matrixLoadTime
-      statistics += "Hare Computation Time: " + matrixLoadTime
+      statistics += "Hare Computation Time: " + hareTime
       
       val rdd_statistics = sc.parallelize(statistics)
       rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
