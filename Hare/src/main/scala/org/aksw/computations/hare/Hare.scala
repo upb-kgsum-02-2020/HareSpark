@@ -24,7 +24,7 @@ import java.math.BigDecimal
 import org.apache.commons.math3.ml.distance.EuclideanDistance
 
 
-object Hare3 {
+object Hare {
   
   
   val df = 0.85

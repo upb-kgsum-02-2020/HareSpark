@@ -5,7 +5,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.mllib.linalg.distributed.MatrixEntry
 import scala.collection.mutable.ListBuffer
 
-object MatricesGenerator2 {
+object MatricesGenerator {
   
 //  /home/gsjunior/Downloads
 //  var sourcePath = "src/main/resources/sample_triples.nt"
