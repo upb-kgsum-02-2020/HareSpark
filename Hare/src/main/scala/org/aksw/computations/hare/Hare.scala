@@ -32,9 +32,9 @@ object Hare {
   var w_path = "/matrices/w.txt"
   var f_path = "/matrices/f.txt"
   var map_edges_resources_dest = "/matrices/edges_resources.txt"
-  var s_n_dest = "/results/s_n.txt"
-  var s_t_dest = "/results/s_t.txt"
-  var statistics_dest = "/statistics/hare_statistics.txt"
+  var s_n_dest = "/results_hare/s_n.txt"
+  var s_t_dest = "/results_hare/s_t.txt"
+  var statistics_dest = "/hare_statistics"
   
   
   def main(args: Array[String]): Unit = {
@@ -42,7 +42,7 @@ object Hare {
     val spark = SparkSession
       .builder()
       .appName("HareImpl")
-//      .master("local[*]")
+      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -67,8 +67,9 @@ object Hare {
       val w = loadCoordinateMatrix(w_rdd)
       val f = loadCoordinateMatrix(f_rdd)
                
-      val p_t = MatrixUtils.coordinateMatrixMultiply(w, f)      
       val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
+      
+
       
       val s_n_v = f.numRows()
       
@@ -99,12 +100,17 @@ object Hare {
       val t2 = System.currentTimeMillis()
       var iter = 0
       val ed = new EuclideanDistance
+      
+      val a = MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose()
+      val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
+      
       while( distance.compareTo(epsilon) == 1 ){
+        
           s_n_previous = s_n_final
           
           s_n_final = MatrixUtils.coordinateMatrixSum(
-          MatrixUtils.coordinateMatrixMultiply(MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose(),s_n_previous),
-          MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble))
+          MatrixUtils.coordinateMatrixMultiply(a,s_n_previous),
+          b)
          
           val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
           val v2 = s_n_previous.transpose().toRowMatrix().rows.collect()(0)

@@ -27,6 +27,7 @@ object MatricesGenerator {
     
     val spark = SparkSession
       .builder()
+      .master("local[*]")
       .appName("MatrixGenerator")
       .getOrCreate()
       
@@ -140,8 +141,8 @@ object MatricesGenerator {
       
       
        
-           w.saveAsTextFile(w_dest)
-           f.saveAsTextFile(f_dest)
+           w.repartition(1).saveAsTextFile(w_dest)
+           f.repartition(1).saveAsTextFile(f_dest)
       
       
            
@@ -151,8 +152,8 @@ object MatricesGenerator {
       
      
            
-      map_triples.saveAsTextFile(edges_triples_dest)
-      map_resources.saveAsTextFile(edges_resources_dest)
+      map_triples.repartition(1).saveAsTextFile(edges_triples_dest)
+      map_resources.repartition(1).saveAsTextFile(edges_resources_dest)
       
       val matrixTime = (System.currentTimeMillis() - t2) / 1000
       
