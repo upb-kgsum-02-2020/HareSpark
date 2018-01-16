@@ -106,7 +106,7 @@ object PageRank {
       println("Linhas : " + b.numRows())
       
       MatrixUtils.coordinateMatrixMultiply(a,s_n_previous)
-      while( distance.compareTo(epsilon) == 1 ){
+      for( it <- 0 to 10 ){
         
           s_n_previous = s_n_final
           
@@ -115,13 +115,20 @@ object PageRank {
           if(c.numRows() < b.numRows()){
             val cme = sc.parallelize(Seq(new MatrixEntry(b.numRows()-1,0,0)))
             c = new CoordinateMatrix(c.entries.union(cme))
-          }else{
+          }else if(c.numRows() > b.numRows()){
             val cme = sc.parallelize(Seq(new MatrixEntry(c.numRows()-1,0,0)))
             b = new CoordinateMatrix(b.entries.union(cme))
           }
           
           s_n_final = c.toBlockMatrix().add(b.toBlockMatrix()).toCoordinateMatrix()
           
+          if(s_n_previous.numRows() > s_n_final.numRows()){
+            val cme = sc.parallelize(Seq(new MatrixEntry(s_n_previous.numRows()-1,0,0)))
+            s_n_final = new CoordinateMatrix(s_n_final.entries.union(cme))
+          }else if(s_n_previous.numRows() < s_n_final.numRows()){
+            val cme = sc.parallelize(Seq(new MatrixEntry(s_n_final.numRows()-1,0,0)))
+            s_n_previous = new CoordinateMatrix(s_n_previous.entries.union(cme))
+          }
 
 //          s_n_final = 
 //          MatrixUtils.coordinateMatrixMultiply(a,s_n_previous).toBlockMatrix().add(b.toBlockMatrix()).toCoordinateMatrix()
