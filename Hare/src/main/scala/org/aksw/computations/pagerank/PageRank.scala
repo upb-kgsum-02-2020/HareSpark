@@ -102,11 +102,11 @@ object PageRank {
       val ed = new EuclideanDistance
       
       val a = MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose()
-      val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
+      var b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
       println("Linhas : " + b.numRows())
       
       MatrixUtils.coordinateMatrixMultiply(a,s_n_previous)
-      for( iter <- 0 to 10){
+      while( distance.compareTo(epsilon) == 1 ){
         
           s_n_previous = s_n_final
           
@@ -115,11 +115,14 @@ object PageRank {
           if(c.numRows() < b.numRows()){
             val cme = sc.parallelize(Seq(new MatrixEntry(b.numRows()-1,0,0)))
             c = new CoordinateMatrix(c.entries.union(cme))
+          }else{
+            val cme = sc.parallelize(Seq(new MatrixEntry(c.numRows()-1,0,0)))
+            b = new CoordinateMatrix(b.entries.union(cme))
           }
           
-          s_n_final = MatrixUtils.coordinateMatrixSum(
-          c,b)
+          s_n_final = c.toBlockMatrix().add(b.toBlockMatrix()).toCoordinateMatrix()
           
+
 //          s_n_final = 
 //          MatrixUtils.coordinateMatrixMultiply(a,s_n_previous).toBlockMatrix().add(b.toBlockMatrix()).toCoordinateMatrix()
          
@@ -128,7 +131,7 @@ object PageRank {
       
           distance = new BigDecimal(ed.compute(v1.toArray, v2.toArray))
 
-        
+        iter = iter+1
       }
     
      
