@@ -1,9 +1,9 @@
-package org.aksw.computations.hare
+package org.aksw.utils
 
-import scala.collection.immutable.ListMap
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.mllib.linalg.distributed.MatrixEntry
 import scala.collection.mutable.ListBuffer
+import org.apache.spark.rdd.RDD.rddToOrderedRDDFunctions
 
 object MatricesGenerator {
   
@@ -16,11 +16,11 @@ object MatricesGenerator {
 //  var edges_resources_dest = "src/main/resources/matrices/sample_triples/edges_resources.txt"
   
   var sourcePath = ""
-  var w_dest = "/matrices/w.txt"
-  var f_dest = "/matrices/f.txt"
-  var edges_triples_dest = "/matrices/edges_triples.txt"
-  var edges_resources_dest = "/matrices/edges_resources.txt"
-  var statistics_dest = "/statistics/statistics.txt"
+  var w_dest = "/matrices/w"
+  var f_dest = "/matrices/f"
+  var edges_triples_dest = "/matrices/edges_triples"
+  var edges_resources_dest = "/matrices/edges_resources"
+  var statistics_dest = "/statistics"
 
   
   def main(args: Array[String]): Unit = {
@@ -62,37 +62,30 @@ object MatricesGenerator {
     
     
     // Creating rdd's for nodes and edges
-    val nodes_rdd = nodes_triples_rdd.union(nodes_subject_rdd)
-                    .union(nodes_predicate_rdd)
-                    .union(nodes_object_rdd)
-                    .distinct().zipWithIndex().toDF("node","id")
-    
-                    
+    val nodes_triples = nodes_triples_rdd.distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"t"))
+    val nodes_entities = nodes_subject_rdd.union(nodes_predicate_rdd).union(nodes_object_rdd).distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"e"))
+    val nodes_rdd = nodes_triples.union(nodes_entities).toDF("node","id")
+                
     val edges_rdd = edges_subject_rdd
                     .union(edges_predicate_rdd)
                     .union(edges_object_rdd).toDF("src","dest")
                     
-    var edges_df = edges_rdd.join(nodes_rdd,nodes_rdd.col("node") === edges_rdd.col("src")).withColumnRenamed("id", "id2").drop("node")
-    edges_df = edges_df.join(nodes_rdd,nodes_rdd.col("node") === edges_rdd.col("dest")).drop("node").drop("src").drop("dest")
-    edges_df = edges_df.withColumnRenamed("id2", "src").withColumnRenamed("id", "dest")
+    
+
+      var edges_df = edges_rdd.join(nodes_rdd,nodes_rdd.col("node") === edges_rdd.col("src")).withColumnRenamed("id", "id2").drop("node")
+      edges_df = edges_df.join(nodes_rdd,nodes_rdd.col("node") === edges_rdd.col("dest")).drop("node").drop("src").drop("dest")
+      edges_df = edges_df.withColumnRenamed("id2", "src").withColumnRenamed("id", "dest")
+      
     
     var final_matrix = edges_df.rdd.map(f => (f.toSeq(0).toString(),f.toSeq(1).toString()))
-                
-        
-     
-     val triples_rdd = nodes_rdd.rdd.map{ x=>
-       if (x.toSeq(0).toString().split("-").size == 3 )
-       {(x.toSeq(0).toString(),x.toSeq(1).toString())} else null }.filter(x=> x!=null)
-       
-     val entities_rdd = nodes_rdd.rdd.map{ x=>
-       if (x.toSeq(0).toString().split("-").size == 1 )
-       {(x.toSeq(0).toString(),x.toSeq(1).toString()) } else null }.filter(x=> x!=null)
 
-                    
+     val map_edges_triples = final_matrix.groupBy(x => x._1).sortByKey(true)
+     val map_edges_resources = final_matrix.groupBy(x => x._2).sortByKey(true)
      
-     val map_edges_triples = final_matrix.groupBy(x => x._1).sortByKey(true).zipWithIndex()
-     val map_edges_resources = final_matrix.groupBy(x => x._2).sortByKey(true).zipWithIndex()
+//     map_edges_triples.repartition(1).saveAsTextFile("src/main/resources/edges_triples")
+//     map_edges_resources.repartition(1).saveAsTextFile("src/main/resources/edges_resources")
      
+     edges_df.show
 
      val count_triples = map_edges_triples.count
      val count_resources = map_edges_resources.count
@@ -103,31 +96,30 @@ object MatricesGenerator {
        
      val w_rdd = map_edges_triples.map{
                x=>     
-               val p = 1.0 / x._1._2.size.toDouble
-
-               val values = x._1._2.toArray
+               val p = 1.0 / x._2.size.toDouble
+               
+               val values = x._2.toArray
                
                val me = new Array[MatrixEntry](values.size)
               for(a<- 0 to values.size-1){
-                     val matrixEntry = new MatrixEntry(values(a)._1.toLong,values(a)._2.toLong,p)
+                     val matrixEntry = new MatrixEntry(values(a)._1.replaceAll("t", "").toLong,values(a)._2.replaceAll("e", "").toLong,p)
                      me(a) = matrixEntry
-                   }
-                 
-               
-
+               }
                me
          }.flatMap(f => f).filter(f => f != null)
+         
+         
      
 
      val f_rdd = map_edges_resources.map{
                x=>     
-               val p = 1.0 / x._1._2.size.toDouble
+               val p = 1.0 / x._2.size.toDouble
 
-               val values = x._1._2.toArray
+               val values = x._2.toArray
                
                val me = new Array[MatrixEntry](values.size)
               for(a<- 0 to values.size-1){
-                     val matrixEntry = new MatrixEntry(values(a)._2.toLong,values(a)._1.toLong,p)
+                     val matrixEntry = new MatrixEntry(values(a)._2.replaceAll("e", "").toLong,values(a)._1.replaceAll("t", "").toLong,p)
                      me(a) = matrixEntry
                    }
                  
@@ -141,19 +133,10 @@ object MatricesGenerator {
       
       
        
-           w.repartition(1).saveAsTextFile(w_dest)
-           f.repartition(1).saveAsTextFile(f_dest)
-      
-      
-           
-           
-      val map_triples = map_edges_triples.map(f => f._1._1 + "," + f._2)
-      val map_resources = map_edges_resources.map(f => f._1._1 + "," + f._2)
+           w.saveAsTextFile(w_dest)
+           f.saveAsTextFile(f_dest)
       
      
-           
-      map_triples.repartition(1).saveAsTextFile(edges_triples_dest)
-      map_resources.repartition(1).saveAsTextFile(edges_resources_dest)
       
       val matrixTime = (System.currentTimeMillis() - t2) / 1000
       

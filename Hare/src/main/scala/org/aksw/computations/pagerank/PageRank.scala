@@ -29,11 +29,10 @@ object PageRank {
   
   val df = 0.85
   
-  var w_path = "/matrices/w.txt"
-  var f_path = "/matrices/f.txt"
-  var map_edges_resources_dest = "/matrices/edges_resources.txt"
-  var s_n_dest = "/results_pr/s_n.txt"
-  var s_t_dest = "/results_pr/s_t.txt"
+  var w_path = "/matrices/w"
+  var f_path = "/matrices/f"
+  var s_n_dest = "/results_pagerank/s_n"
+  var s_t_dest = "/results_pagerank/s_t"
   var statistics_dest = "/pagerank_statistics"
   
   
@@ -41,7 +40,7 @@ object PageRank {
     
     val spark = SparkSession
       .builder()
-      .appName("HareImpl")
+      .appName("PageRankScalaSpark")
       .master("local[*]")
       .getOrCreate()
       
@@ -49,7 +48,6 @@ object PageRank {
       
        w_path = args(0) + w_path
        f_path = args(0) + f_path
-       map_edges_resources_dest = args(0) + map_edges_resources_dest
        s_n_dest = args(0) + s_n_dest
        s_t_dest = args(0) + s_t_dest
        statistics_dest = args(0) + statistics_dest
@@ -59,17 +57,17 @@ object PageRank {
       
       val w_rdd = sc.textFile(w_path)
       val f_rdd = sc.textFile(f_path)
-      
-      val map_edges_resources = sc.textFile(map_edges_resources_dest).map(f => (f.split(",")(0).toLong,f.split(",")(1).toLong))
        
       val t1 = System.currentTimeMillis()
                
       val w = loadCoordinateMatrix(w_rdd)
       val f = loadCoordinateMatrix(f_rdd)
+      
+      
                
+//      val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
       
-      val p_n = new CoordinateMatrix(w.entries.union(f.entries))
-      
+      val p = mergeMatrix(w, f)
 
       
       val s_n_v = f.numRows()
@@ -78,11 +76,12 @@ object PageRank {
       
 
       
-      val t = f.entries.map(f => f.i).distinct().sortBy(f =>f,true)
+      val t = f.entries.map(f => f.i).sortBy(f =>f,true)
       
       var s_n_final = new CoordinateMatrix(t.map{ x=> 
         new MatrixEntry(x,0,s_i)})
     
+         
          
       val matrix_i = new CoordinateMatrix(t.map{ x=> 
         new MatrixEntry(x,0,1)})
@@ -98,47 +97,26 @@ object PageRank {
       var distance = new BigDecimal(1)
       
       val t2 = System.currentTimeMillis()
-      var iter = 0L
+      var iter = 0
       val ed = new EuclideanDistance
       
-      val a = MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose()
-      var b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
-      println("Linhas : " + b.numRows())
+      val a = MatrixUtils.multiplyMatrixByNumber(p, df).transpose()
+      val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
       
-      MatrixUtils.coordinateMatrixMultiply(a,s_n_previous)
-      for( it <- 0 to 10 ){
+      while( distance.compareTo(epsilon) == 1  && iter < 10){
         
           s_n_previous = s_n_final
           
-          var c =  MatrixUtils.coordinateMatrixMultiply(a,s_n_previous)
-          
-          if(c.numRows() < b.numRows()){
-            val cme = sc.parallelize(Seq(new MatrixEntry(b.numRows()-1,0,0)))
-            c = new CoordinateMatrix(c.entries.union(cme))
-          }else if(c.numRows() > b.numRows()){
-            val cme = sc.parallelize(Seq(new MatrixEntry(c.numRows()-1,0,0)))
-            b = new CoordinateMatrix(b.entries.union(cme))
-          }
-          
-          s_n_final = c.toBlockMatrix().add(b.toBlockMatrix()).toCoordinateMatrix()
-          
-          if(s_n_previous.numRows() > s_n_final.numRows()){
-            val cme = sc.parallelize(Seq(new MatrixEntry(s_n_previous.numRows()-1,0,0)))
-            s_n_final = new CoordinateMatrix(s_n_final.entries.union(cme))
-          }else if(s_n_previous.numRows() < s_n_final.numRows()){
-            val cme = sc.parallelize(Seq(new MatrixEntry(s_n_final.numRows()-1,0,0)))
-            s_n_previous = new CoordinateMatrix(s_n_previous.entries.union(cme))
-          }
-
-//          s_n_final = 
-//          MatrixUtils.coordinateMatrixMultiply(a,s_n_previous).toBlockMatrix().add(b.toBlockMatrix()).toCoordinateMatrix()
+          s_n_final = MatrixUtils.coordinateMatrixSum(
+          MatrixUtils.coordinateMatrixMultiply(a,s_n_previous),
+          b)
          
           val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
           val v2 = s_n_previous.transpose().toRowMatrix().rows.collect()(0)
       
           distance = new BigDecimal(ed.compute(v1.toArray, v2.toArray))
-
-        iter = iter+1
+          iter = iter+1
+        
       }
     
      
@@ -152,7 +130,7 @@ object PageRank {
       val statistics = new ListBuffer[String]()
       statistics += "Iterations: " + iter
       statistics += "Matrices Load Time: " + matrixLoadTime
-      statistics += "Hare Computation Time: " + hareTime
+      statistics += "PageRank Computation Time: " + hareTime
       
       val rdd_statistics = sc.parallelize(statistics)
       rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
@@ -162,6 +140,13 @@ object PageRank {
 
   }
   
+  def mergeMatrix(w: CoordinateMatrix, f: CoordinateMatrix): CoordinateMatrix = {
+      val n = w.numRows()
+      val new_w = w.entries.map(x => new MatrixEntry(x.i,x.j+n,x.value))
+      val new_f = w.entries.map(x => new MatrixEntry(x.i+n,x.j,x.value))
+      
+      new CoordinateMatrix(new_w.union(new_f))
+  }
   
   def loadCoordinateMatrix(rdd : RDD[String]): CoordinateMatrix = {
     new CoordinateMatrix(rdd.map{ x =>

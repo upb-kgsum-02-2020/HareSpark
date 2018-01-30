@@ -29,11 +29,10 @@ object Hare {
   
   val df = 0.85
   
-  var w_path = "/matrices/w.txt"
-  var f_path = "/matrices/f.txt"
-  var map_edges_resources_dest = "/matrices/edges_resources.txt"
-  var s_n_dest = "/results_hare/s_n.txt"
-  var s_t_dest = "/results_hare/s_t.txt"
+  var w_path = "/matrices/w"
+  var f_path = "/matrices/f"
+  var s_n_dest = "/results_hare/s_n"
+  var s_t_dest = "/results_hare/s_t"
   var statistics_dest = "/hare_statistics"
   
   
@@ -41,7 +40,7 @@ object Hare {
     
     val spark = SparkSession
       .builder()
-      .appName("HareImpl")
+      .appName("HareScalaSpark")
       .master("local[*]")
       .getOrCreate()
       
@@ -49,7 +48,6 @@ object Hare {
       
        w_path = args(0) + w_path
        f_path = args(0) + f_path
-       map_edges_resources_dest = args(0) + map_edges_resources_dest
        s_n_dest = args(0) + s_n_dest
        s_t_dest = args(0) + s_t_dest
        statistics_dest = args(0) + statistics_dest
@@ -59,13 +57,13 @@ object Hare {
       
       val w_rdd = sc.textFile(w_path)
       val f_rdd = sc.textFile(f_path)
-      
-      val map_edges_resources = sc.textFile(map_edges_resources_dest).map(f => (f.split(",")(0).toLong,f.split(",")(1).toLong))
        
       val t1 = System.currentTimeMillis()
                
       val w = loadCoordinateMatrix(w_rdd)
       val f = loadCoordinateMatrix(f_rdd)
+      
+      
                
       val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
       
@@ -104,7 +102,7 @@ object Hare {
       val a = MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose()
       val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
       
-      while( distance.compareTo(epsilon) == 1 ){
+      while( distance.compareTo(epsilon) == 1  && iter < 10){
         
           s_n_previous = s_n_final
           
@@ -114,7 +112,7 @@ object Hare {
          
           val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
           val v2 = s_n_previous.transpose().toRowMatrix().rows.collect()(0)
-      
+          
           distance = new BigDecimal(ed.compute(v1.toArray, v2.toArray))
           iter = iter+1
         
