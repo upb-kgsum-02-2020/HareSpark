@@ -75,7 +75,7 @@ object Hare {
       
 
       
-      val t = f.entries.map(f => f.i).distinct().sortBy(f =>f,true)
+      val t = sc.parallelize(0 to f.numRows().toInt-1)
       
       var s_n_final = new CoordinateMatrix(t.map{ x=> 
         new MatrixEntry(x,0,s_i)})

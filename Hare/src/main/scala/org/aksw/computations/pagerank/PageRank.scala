@@ -68,15 +68,14 @@ object PageRank {
 //      val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
       
       val p = mergeMatrix(w, f)
-
       
       val s_n_v = f.numRows()
       
       val s_i = f.numCols().toDouble / (w.numCols().toDouble * (f.numCols().toDouble + w.numCols().toDouble))
       
-
       
-      val t = f.entries.map(f => f.i).sortBy(f =>f,true)
+      
+      val t = sc.parallelize(0 to f.numRows().toInt-1)
       
       var s_n_final = new CoordinateMatrix(t.map{ x=> 
         new MatrixEntry(x,0,s_i)})
@@ -102,6 +101,8 @@ object PageRank {
       
       val a = MatrixUtils.multiplyMatrixByNumber(p, df).transpose()
       val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
+      
+      s_n_previous.entries.repartition(1).saveAsTextFile("src/main/resources/s_n_previous")
       
       while( distance.compareTo(epsilon) == 1  && iter < 10){
         
@@ -143,7 +144,7 @@ object PageRank {
   def mergeMatrix(w: CoordinateMatrix, f: CoordinateMatrix): CoordinateMatrix = {
       val n = w.numRows()
       val new_w = w.entries.map(x => new MatrixEntry(x.i,x.j+n,x.value))
-      val new_f = w.entries.map(x => new MatrixEntry(x.i+n,x.j,x.value))
+      val new_f = f.entries.map(x => new MatrixEntry(x.i+n,x.j,x.value))
       
       new CoordinateMatrix(new_w.union(new_f))
   }
