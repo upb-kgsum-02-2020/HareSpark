@@ -41,7 +41,7 @@ object PageRank {
     val spark = SparkSession
       .builder()
       .appName("PageRankScalaSpark")
-      .master("local[*]")
+//      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -64,10 +64,13 @@ object PageRank {
       val f = loadCoordinateMatrix(f_rdd)
       
       
-               
-//      val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
-      
       val p = mergeMatrix(w, f)
+      
+      println("linhas p: " + p.numRows())
+      println("colunas p: " + p.numCols())
+      
+      
+
       
       val s_n_v = f.numRows()
       
@@ -75,7 +78,7 @@ object PageRank {
       
       
       
-      val t = sc.parallelize(0 to f.numRows().toInt-1)
+      val t = sc.parallelize(0 to p.numRows().toInt-1)
       
       var s_n_final = new CoordinateMatrix(t.map{ x=> 
         new MatrixEntry(x,0,s_i)})
@@ -84,6 +87,10 @@ object PageRank {
          
       val matrix_i = new CoordinateMatrix(t.map{ x=> 
         new MatrixEntry(x,0,1)})
+    
+      
+    
+    
       
       val matrixLoadTime = (System.currentTimeMillis() - t1) / 1000
       
@@ -102,7 +109,6 @@ object PageRank {
       val a = MatrixUtils.multiplyMatrixByNumber(p, df).transpose()
       val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
       
-      s_n_previous.entries.repartition(1).saveAsTextFile("src/main/resources/s_n_previous")
       
       while( distance.compareTo(epsilon) == 1  && iter < 10){
         
@@ -138,6 +144,8 @@ object PageRank {
       
       println("Distance: " + distance)
       println("Iterations: " + iter)
+      
+      spark.stop()
 
   }
   

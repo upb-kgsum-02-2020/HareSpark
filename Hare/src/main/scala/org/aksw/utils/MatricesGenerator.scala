@@ -4,6 +4,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.mllib.linalg.distributed.MatrixEntry
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.rdd.RDD.rddToOrderedRDDFunctions
+import net.sansa_stack.rdf.spark.io.NTripleReader
 
 object MatricesGenerator {
   
@@ -27,7 +28,7 @@ object MatricesGenerator {
     
     val spark = SparkSession
       .builder()
-      .master("local[*]")
+//      .master("local[*]")
       .appName("MatrixGenerator")
       .getOrCreate()
       
@@ -47,18 +48,33 @@ object MatricesGenerator {
     
     val t1 = System.currentTimeMillis()
     
-    //Creating rdd's for nodes
-    val nodes_triples_rdd = rdd.map(x => x.replaceAll("\\s+", "-"))
+    val sansa_triples = NTripleReader.load(spark, sourcePath)
+
+        //Creating rdd's for nodes
+    val nodes_triples_rdd = sansa_triples.map(f => f.toString() )
     
-    val nodes_subject_rdd = rdd.map(x => x.split("\\s+")(0))
-    val nodes_predicate_rdd = rdd.map(x => x.split("\\s+")(1))
-    val nodes_object_rdd = rdd.map(x => x.split("\\s+")(2))
-    
+    val nodes_subject_rdd = sansa_triples.map(f => f.getSubject.toString())
+    val nodes_predicate_rdd = sansa_triples.map(f => f.getPredicate.toString())
+    val nodes_object_rdd = sansa_triples.map(f => f.getObject.toString())
     
     //Creating rdd's for edges
-    val edges_subject_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(0)))
-    val edges_predicate_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(1)))
-    val edges_object_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(2)))
+    
+    val edges_subject_rdd = sansa_triples.map(f => (f.toString(),f.getSubject.toString))
+    val edges_predicate_rdd = sansa_triples.map(f => (f.toString(),f.getPredicate.toString))
+    val edges_object_rdd = sansa_triples.map(f => (f.toString(),f.getObject.toString))
+    
+
+//    val nodes_triples_rdd = rdd.map(x => x.replaceAll("\\s+", "-"))
+//    
+//    val nodes_subject_rdd = rdd.map(x => x.split("\\s+")(0))
+//    val nodes_predicate_rdd = rdd.map(x => x.split("\\s+")(1))
+//    val nodes_object_rdd = rdd.map(x => x.split("\\s+")(2))
+//    
+//    
+//    
+//    val edges_subject_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(0)))
+//    val edges_predicate_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(1)))
+//    val edges_object_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(2)))
     
     
     // Creating rdd's for nodes and edges
@@ -70,7 +86,7 @@ object MatricesGenerator {
                     .union(edges_predicate_rdd)
                     .union(edges_object_rdd).toDF("src","dest")
                     
-    
+      
 
       var edges_df = edges_rdd.join(nodes_rdd,nodes_rdd.col("node") === edges_rdd.col("src")).withColumnRenamed("id", "id2").drop("node")
       edges_df = edges_df.join(nodes_rdd,nodes_rdd.col("node") === edges_rdd.col("dest")).drop("node").drop("src").drop("dest")
