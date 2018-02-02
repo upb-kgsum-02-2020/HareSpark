@@ -22,6 +22,7 @@ import org.apache.spark.rdd.RDD
 import scala.collection.mutable.ListBuffer
 import java.math.BigDecimal
 import org.apache.commons.math3.ml.distance.EuclideanDistance
+import org.aksw.utils.DistanceUtils
 
 
 object Hare {
@@ -102,7 +103,7 @@ object Hare {
       val a = MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose()
       val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
       
-      while( distance.compareTo(epsilon) == 1  && iter < 10){
+      while( distance.compareTo(epsilon) == 1  && iter < 1000){
         
           s_n_previous = s_n_final
           
@@ -110,10 +111,9 @@ object Hare {
           MatrixUtils.coordinateMatrixMultiply(a,s_n_previous),
           b)
          
-          val v1 = s_n_final.transpose().toRowMatrix().rows.collect()(0)
-          val v2 = s_n_previous.transpose().toRowMatrix().rows.collect()(0)
           
-          distance = new BigDecimal(ed.compute(v1.toArray, v2.toArray))
+          distance = new BigDecimal(DistanceUtils.euclideanDistance(s_n_final.entries.map(f => f.value), s_n_previous.entries.map(f => f.value)))
+          
           iter = iter+1
         
       }
@@ -136,7 +136,7 @@ object Hare {
       
       println("Distance: " + distance)
       println("Iterations: " + iter)
-
+      spark.stop()
   }
   
   

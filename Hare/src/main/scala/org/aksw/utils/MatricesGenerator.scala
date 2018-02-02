@@ -101,7 +101,6 @@ object MatricesGenerator {
 //     map_edges_triples.repartition(1).saveAsTextFile("src/main/resources/edges_triples")
 //     map_edges_resources.repartition(1).saveAsTextFile("src/main/resources/edges_resources")
      
-     edges_df.show
 
      val count_triples = map_edges_triples.count
      val count_resources = map_edges_resources.count
@@ -164,6 +163,7 @@ object MatricesGenerator {
       
       val rdd_statistics = sc.parallelize(statistics)
       rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
+      spark.stop()
       
   }
   
