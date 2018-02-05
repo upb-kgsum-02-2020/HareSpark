@@ -42,7 +42,7 @@ object MatrixUtils {
           val productEntries = M_
             .join(N_)
             .map({ case ((i,j), (v,w)) => ((i,j),(v+w)) })
-            .reduceByKey(_ + _)
+//            .reduceByKey(_ + _)
             .map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
         
           new CoordinateMatrix(productEntries)
