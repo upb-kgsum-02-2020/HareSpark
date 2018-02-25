@@ -28,7 +28,7 @@ object MatricesGenerator {
     
     val spark = SparkSession
       .builder()
-//      .master("local[*]")
+      .master("local[*]")
       .appName("MatrixGenerator")
       .getOrCreate()
       
@@ -63,43 +63,17 @@ object MatricesGenerator {
     val edges_predicate_rdd = sansa_triples.map(f => (f.toString(),f.getPredicate.toString))
     val edges_object_rdd = sansa_triples.map(f => (f.toString(),f.getObject.toString))
     
-
-//    val nodes_triples_rdd = rdd.map(x => x.replaceAll("\\s+", "-"))
-//    
-//    val nodes_subject_rdd = rdd.map(x => x.split("\\s+")(0))
-//    val nodes_predicate_rdd = rdd.map(x => x.split("\\s+")(1))
-//    val nodes_object_rdd = rdd.map(x => x.split("\\s+")(2))
-//    
-//    
-//    
-//    val edges_subject_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(0)))
-//    val edges_predicate_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(1)))
-//    val edges_object_rdd = rdd.map(x => (x.replaceAll("\\s+", "-"),x.split("\\s+")(2)))
-    
     
     // Creating rdd's for nodes and edges
     val nodes_triples = nodes_triples_rdd.distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"t"))
-    val nodes_entities = nodes_subject_rdd.union(nodes_predicate_rdd).union(nodes_object_rdd).distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"e"))
-    val nodes_rdd = nodes_triples.union(nodes_entities).toDF("node","id")
-                
-    val edges_rdd = edges_subject_rdd
-                    .union(edges_predicate_rdd)
-                    .union(edges_object_rdd).toDF("src","dest")
-                    
-      
-
-      var edges_df = edges_rdd.join(nodes_rdd,nodes_rdd.col("node") === edges_rdd.col("src")).withColumnRenamed("id", "id2").drop("node")
-      edges_df = edges_df.join(nodes_rdd,nodes_rdd.col("node") === edges_rdd.col("dest")).drop("node").drop("src").drop("dest")
-      edges_df = edges_df.withColumnRenamed("id2", "src").withColumnRenamed("id", "dest")
-      
+    val nodes_entities = nodes_subject_rdd.union(nodes_predicate_rdd).union(nodes_object_rdd)
+    .distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"e"))
     
-    var final_matrix = edges_df.rdd.map(f => (f.toSeq(0).toString(),f.toSeq(1).toString()))
+    var final_matrix = edges_subject_rdd.union(edges_predicate_rdd).union(edges_object_rdd)
+    .join(nodes_triples).map(x=> x._2).join(nodes_entities).map{x => x._2}
 
-     val map_edges_triples = final_matrix.groupBy(x => x._1).sortByKey(true)
-     val map_edges_resources = final_matrix.groupBy(x => x._2).sortByKey(true)
-     
-//     map_edges_triples.repartition(1).saveAsTextFile("src/main/resources/edges_triples")
-//     map_edges_resources.repartition(1).saveAsTextFile("src/main/resources/edges_resources")
+     val map_edges_triples = final_matrix.groupBy(x => x._1).cache
+     val map_edges_resources = final_matrix.groupBy(x => x._2).cache
      
 
      val count_triples = map_edges_triples.count
