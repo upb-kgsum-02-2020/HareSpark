@@ -39,9 +39,10 @@ object Hare {
   
   def main(args: Array[String]): Unit = {
     
+   
     val spark = SparkSession
       .builder()
-      .appName("HareScalaSpark")
+      .appName("HareScalaSpark-" + args(0).substring(args(0).lastIndexOf("/") + 1))
 //      .master("local[*]")
       .getOrCreate()
       
@@ -98,23 +99,26 @@ object Hare {
       
       val t2 = System.currentTimeMillis()
       var iter = 0
-      val ed = new EuclideanDistance
       
       val a = MatrixUtils.multiplyMatrixByNumber(p_n, df).transpose()
       val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
       
+      val iter_list = new ListBuffer[Long]
+      
       while( distance.compareTo(epsilon) == 1  && iter < 1000){
+        val time_iter_begin = System.currentTimeMillis()
         
           s_n_previous = s_n_final
           
           s_n_final = MatrixUtils.coordinateMatrixSum(
           MatrixUtils.coordinateMatrixMultiply(a,s_n_previous),
           b)
-         
-          
+
           distance = new BigDecimal(DistanceUtils.euclideanDistance(s_n_final.entries.map(f => f.value), s_n_previous.entries.map(f => f.value)))
           
           iter = iter+1
+          
+          iter_list+=((System.currentTimeMillis() - time_iter_begin) / 1000)
         
       }
     
@@ -128,8 +132,9 @@ object Hare {
       
       val statistics = new ListBuffer[String]()
       statistics += "Iterations: " + iter
-      statistics += "Matrices Load Time: " + matrixLoadTime
+      statistics += "Iteration avg time: " + computeIterTimeMean(iter_list)
       statistics += "Hare Computation Time: " + hareTime
+      statistics += "Matrices Load Time: " + matrixLoadTime
       
       val rdd_statistics = sc.parallelize(statistics)
       rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
@@ -139,6 +144,11 @@ object Hare {
       spark.stop()
   }
   
+  def computeIterTimeMean(list: ListBuffer[Long]): Double = {
+    var sum = 0L
+    list.foreach(sum+=_)
+    sum.toDouble / list.size.toDouble
+  }
   
   def loadCoordinateMatrix(rdd : RDD[String]): CoordinateMatrix = {
     new CoordinateMatrix(rdd.map{ x =>

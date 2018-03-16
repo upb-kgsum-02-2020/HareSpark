@@ -41,7 +41,7 @@ object PageRank {
     
     val spark = SparkSession
       .builder()
-      .appName("PageRankScalaSpark")
+      .appName("PageRankScalaSpark-" + args(0).substring(args(0).lastIndexOf("/") + 1))
 //      .master("local[*]")
       .getOrCreate()
       
@@ -111,8 +111,11 @@ object PageRank {
       val a = MatrixUtils.multiplyMatrixByNumber(p, df).transpose()
       val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
       
+      val iter_list = new ListBuffer[Long]
       
       while( distance.compareTo(epsilon) == 1  && iter < 1000){
+        
+          val time_iter_begin = System.currentTimeMillis()
         
           s_n_previous = s_n_final
           
@@ -122,7 +125,7 @@ object PageRank {
 
           distance = new BigDecimal(DistanceUtils.euclideanDistance(s_n_final.entries.map(f => f.value), s_n_previous.entries.map(f => f.value)))
           iter = iter+1
-        
+          iter_list+=(System.currentTimeMillis() - time_iter_begin) / 1000
       }
     
      
@@ -135,6 +138,7 @@ object PageRank {
       
       val statistics = new ListBuffer[String]()
       statistics += "Iterations: " + iter
+       statistics += "Iteration avg time: " + computeIterTimeMean(iter_list)
       statistics += "Matrices Load Time: " + matrixLoadTime
       statistics += "PageRank Computation Time: " + hareTime
       
@@ -146,6 +150,12 @@ object PageRank {
       
       spark.stop()
 
+  }
+  
+  def computeIterTimeMean(list: ListBuffer[Long]): Double = {
+    var sum = 0L
+    list.foreach(sum+=_)
+    sum.toDouble / list.size.toDouble
   }
   
   def mergeMatrix(w: CoordinateMatrix, f: CoordinateMatrix): CoordinateMatrix = {

@@ -28,7 +28,7 @@ object MatricesGenerator {
     
     val spark = SparkSession
       .builder()
-      .master("local[*]")
+//      .master("local[*]")
       .appName("MatrixGenerator")
       .getOrCreate()
       
@@ -72,8 +72,8 @@ object MatricesGenerator {
     var final_matrix = edges_subject_rdd.union(edges_predicate_rdd).union(edges_object_rdd)
     .join(nodes_triples).map(x=> x._2).join(nodes_entities).map{x => x._2}
 
-     val map_edges_triples = final_matrix.groupBy(x => x._1).cache
-     val map_edges_resources = final_matrix.groupBy(x => x._2).cache
+     val map_edges_triples = final_matrix.groupBy(x => x._1)
+     val map_edges_resources = final_matrix.groupBy(x => x._2)
      
 
      val count_triples = map_edges_triples.count
