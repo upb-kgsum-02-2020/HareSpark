@@ -32,9 +32,10 @@ object Hare {
   
   var w_path = "/matrices/w"
   var f_path = "/matrices/f"
-  var s_n_dest = "/results_hare/s_n"
-  var s_t_dest = "/results_hare/s_t"
+  var results_dest = "/results_hare"
+
   var statistics_dest = "/hare_statistics"
+  var entities_dest = "/entites"
   
   
   def main(args: Array[String]): Unit = {
@@ -50,9 +51,9 @@ object Hare {
       
        w_path = args(0) + w_path
        f_path = args(0) + f_path
-       s_n_dest = args(0) + s_n_dest
-       s_t_dest = args(0) + s_t_dest
+       results_dest = args(0) + results_dest
        statistics_dest = args(0) + statistics_dest
+       entities_dest = args(0) + entities_dest
     
       val sc = spark.sparkContext
      
@@ -62,20 +63,19 @@ object Hare {
        
       val t1 = System.currentTimeMillis()
                
-      val w = loadCoordinateMatrix(w_rdd)
-      val f = loadCoordinateMatrix(f_rdd)
+      var w = loadCoordinateMatrix(w_rdd)
+      var f = loadCoordinateMatrix(f_rdd)
+      w_rdd.unpersist(true)
+      f_rdd.unpersist(true)
       
+//      val entities = sc.textFile(entities_dest).map(f =>(f.split(",")(0),f.split(",")(1)))
       
                
       val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
-      
 
-      
       val s_n_v = f.numRows()
       
       val s_i = f.numCols().toDouble / (w.numCols().toDouble * (f.numCols().toDouble + w.numCols().toDouble))
-      
-
       
       val t = sc.parallelize(0 to f.numRows().toInt-1)
       
@@ -122,11 +122,14 @@ object Hare {
         
       }
     
-     
+
+       System.gc()
       s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
       
-      s_n_final.toRowMatrix().rows.saveAsTextFile(s_n_dest)
-      s_t_final.toRowMatrix().rows.saveAsTextFile(s_t_dest)
+   
+      
+//      s_n_final.toRowMatrix().rows.repartition(1).saveAsTextFile(results_dest)
+  
       
       val hareTime = (System.currentTimeMillis() - t2) / 1000
       
@@ -138,6 +141,11 @@ object Hare {
       
       val rdd_statistics = sc.parallelize(statistics)
       rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
+      
+      
+//       sc.parallelize(s_n_final.toRowMatrix().rows.flatMap(f => f.toArray).zipWithIndex().map(f => (f._2 + "e",f._1))
+//      .union(s_t_final.toRowMatrix().rows.flatMap(f => f.toArray).zipWithIndex().map(f => (f._2 + "t",f._1)))
+//      .join(entities).map(f => (f._2._2,f._2._1)).sortBy((f => f._2),false).top(10000)).repartition(1).saveAsTextFile(results_dest)
       
       println("Distance: " + distance)
       println("Iterations: " + iter)

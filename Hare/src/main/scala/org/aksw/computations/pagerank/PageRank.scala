@@ -64,7 +64,8 @@ object PageRank {
                
       val w = loadCoordinateMatrix(w_rdd)
       val f = loadCoordinateMatrix(f_rdd)
-      
+       w_rdd.unpersist(true)
+      f_rdd.unpersist(true)
       
       val p = mergeMatrix(w, f)
       
@@ -83,17 +84,12 @@ object PageRank {
       val t = sc.parallelize(0 to p.numRows().toInt-1)
       
       var s_n_final = new CoordinateMatrix(t.map{ x=> 
-        new MatrixEntry(x,0,s_i)})
-    
-         
+        new MatrixEntry(x,0,s_i)})    
          
       val matrix_i = new CoordinateMatrix(t.map{ x=> 
         new MatrixEntry(x,0,1)})
     
-      
-    
-    
-      
+
       val matrixLoadTime = (System.currentTimeMillis() - t1) / 1000
       
       var s_t_final = s_n_final
@@ -106,7 +102,6 @@ object PageRank {
       
       val t2 = System.currentTimeMillis()
       var iter = 0
-      val ed = new EuclideanDistance
       
       val a = MatrixUtils.multiplyMatrixByNumber(p, df).transpose()
       val b = MatrixUtils.divideMatrixByNumber(MatrixUtils.multiplyMatrixByNumber(matrix_i, 1-df),s_n_v.toDouble)
@@ -131,8 +126,8 @@ object PageRank {
      
       s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
       
-      s_n_final.toRowMatrix().rows.saveAsTextFile(s_n_dest)
-      s_t_final.toRowMatrix().rows.saveAsTextFile(s_t_dest)
+      //s_n_final.toRowMatrix().rows.saveAsTextFile(s_n_dest)
+      //s_t_final.toRowMatrix().rows.saveAsTextFile(s_t_dest)
       
       val hareTime = (System.currentTimeMillis() - t2) / 1000
       

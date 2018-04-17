@@ -5,6 +5,7 @@ import org.apache.spark.mllib.linalg.distributed.MatrixEntry
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.rdd.RDD.rddToOrderedRDDFunctions
 import net.sansa_stack.rdf.spark.io.NTripleReader
+import org.apache.spark.storage.StorageLevel
 
 object MatricesGenerator {
   
@@ -22,6 +23,7 @@ object MatricesGenerator {
   var edges_triples_dest = "/matrices/edges_triples"
   var edges_resources_dest = "/matrices/edges_resources"
   var statistics_dest = "/statistics"
+  var entities_dest = "/entites"
 
   
   def main(args: Array[String]): Unit = {
@@ -40,12 +42,10 @@ object MatricesGenerator {
     edges_triples_dest = args(1) + edges_triples_dest
     edges_resources_dest = args(1) + edges_resources_dest
     statistics_dest = args(1) + statistics_dest
-    
+    entities_dest = args(1) + entities_dest
     
     val sc = spark.sparkContext
-
-    val rdd = sc.textFile(sourcePath)
-    
+   
     val t1 = System.currentTimeMillis()
     
     val sansa_triples = NTripleReader.load(spark, sourcePath)
@@ -69,11 +69,14 @@ object MatricesGenerator {
     val nodes_entities = nodes_subject_rdd.union(nodes_predicate_rdd).union(nodes_object_rdd)
     .distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"e"))
     
+    nodes_triples.union(nodes_entities).map(x=> x._2 + "," + x._1).repartition(1).saveAsTextFile(entities_dest)
+    
     var final_matrix = edges_subject_rdd.union(edges_predicate_rdd).union(edges_object_rdd)
-    .join(nodes_triples).map(x=> x._2).join(nodes_entities).map{x => x._2}
+    .join(nodes_triples).map(x=> x._2).join(nodes_entities).map{x => x._2}.persist(StorageLevel.MEMORY_AND_DISK_SER)
 
      val map_edges_triples = final_matrix.groupBy(x => x._1)
      val map_edges_resources = final_matrix.groupBy(x => x._2)
+     
      
 
      val count_triples = map_edges_triples.count
@@ -122,8 +125,8 @@ object MatricesGenerator {
       
       
        
-           w.saveAsTextFile(w_dest)
-           f.saveAsTextFile(f_dest)
+           w.repartition(1).saveAsTextFile(w_dest)
+           f.repartition(1).saveAsTextFile(f_dest)
       
      
       
