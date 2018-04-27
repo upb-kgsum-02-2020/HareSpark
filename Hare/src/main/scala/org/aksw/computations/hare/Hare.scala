@@ -32,8 +32,8 @@ object Hare {
   
   var w_path = "/matrices/w"
   var f_path = "/matrices/f"
-  var results_dest = "/results_hare"
-
+  var s_n_dest = "/results_hare/s_n"
+  var s_t_dest = "/results_hare/s_t"
   var statistics_dest = "/hare_statistics"
   var entities_dest = "/entites"
   
@@ -44,14 +44,15 @@ object Hare {
     val spark = SparkSession
       .builder()
       .appName("HareScalaSpark-" + args(0).substring(args(0).lastIndexOf("/") + 1))
-//      .master("local[*]")
+      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
       
        w_path = args(0) + w_path
        f_path = args(0) + f_path
-       results_dest = args(0) + results_dest
+       s_n_dest = args(0) + s_n_dest
+       s_t_dest = args(0) + s_t_dest
        statistics_dest = args(0) + statistics_dest
        entities_dest = args(0) + entities_dest
     
@@ -121,12 +122,12 @@ object Hare {
     
 
        System.gc()
-      s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
+        s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
       
    
       
-      //s_n_final.toRowMatrix().rows.saveAsTextFile(s_n_dest)
-      //s_t_final.toRowMatrix().rows.saveAsTextFile(s_t_dest)
+      s_n_final.entries.repartition(1).saveAsTextFile(s_n_dest)
+      s_t_final.entries.repartition(1).saveAsTextFile(s_t_dest)
   
       
       val hareTime = (System.currentTimeMillis() - t2) / 1000
