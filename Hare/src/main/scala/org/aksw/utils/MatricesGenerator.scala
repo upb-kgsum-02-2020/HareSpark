@@ -30,7 +30,7 @@ object MatricesGenerator {
     
     val spark = SparkSession
       .builder()
-//      .master("local[*]")
+      .master("local[*]")
       .appName("MatrixGenerator")
       .getOrCreate()
       
@@ -57,27 +57,31 @@ object MatricesGenerator {
     val nodes_predicate_rdd = sansa_triples.map(f => f.getPredicate.toString())
     val nodes_object_rdd = sansa_triples.map(f => f.getObject.toString())
     
-    //Creating rdd's for edges
+    //Creating rdd's for edges    
     
-    val edges_subject_rdd = sansa_triples.map(f => (f.toString(),f.getSubject.toString))
-    val edges_predicate_rdd = sansa_triples.map(f => (f.toString(),f.getPredicate.toString))
-    val edges_object_rdd = sansa_triples.map(f => (f.toString(),f.getObject.toString))
+    
+    
+     val total_edges = sansa_triples.map{
+               f => Array(
+                       (f.toString() ,f.getSubject.toString ),
+                       (f.toString(),f.getPredicate.toString),
+                       (f.toString(),f.getObject.toString)
+                     )
+    }.flatMap(f=>f)
     
     
     // Creating rdd's for nodes and edges
+    
     val nodes_triples = nodes_triples_rdd.distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"t"))
     val nodes_entities = nodes_subject_rdd.union(nodes_predicate_rdd).union(nodes_object_rdd)
     .distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"e"))
     
     nodes_triples.union(nodes_entities).map(x=> x._2 + "," + x._1).repartition(1).saveAsTextFile(entities_dest)
     
-    var final_matrix = edges_subject_rdd.union(edges_predicate_rdd).union(edges_object_rdd)
-    .join(nodes_triples).map(x=> x._2).join(nodes_entities).map{x => x._2}.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    var final_matrix = total_edges.join(nodes_triples).map(x=> x._2).join(nodes_entities).map{x => x._2}.persist(StorageLevel.MEMORY_AND_DISK_SER)
 
      val map_edges_triples = final_matrix.groupBy(x => x._1)
      val map_edges_resources = final_matrix.groupBy(x => x._2)
-     
-     
 
      val count_triples = map_edges_triples.count
      val count_resources = map_edges_resources.count

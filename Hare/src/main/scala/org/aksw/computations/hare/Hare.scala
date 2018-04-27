@@ -65,12 +65,9 @@ object Hare {
                
       var w = loadCoordinateMatrix(w_rdd)
       var f = loadCoordinateMatrix(f_rdd)
-      w_rdd.unpersist(true)
-      f_rdd.unpersist(true)
       
 //      val entities = sc.textFile(entities_dest).map(f =>(f.split(",")(0),f.split(",")(1)))
       
-               
       val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
 
       val s_n_v = f.numRows()
@@ -128,7 +125,8 @@ object Hare {
       
    
       
-//      s_n_final.toRowMatrix().rows.repartition(1).saveAsTextFile(results_dest)
+      //s_n_final.toRowMatrix().rows.saveAsTextFile(s_n_dest)
+      //s_t_final.toRowMatrix().rows.saveAsTextFile(s_t_dest)
   
       
       val hareTime = (System.currentTimeMillis() - t2) / 1000
