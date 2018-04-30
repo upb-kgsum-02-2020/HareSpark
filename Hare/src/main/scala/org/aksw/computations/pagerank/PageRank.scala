@@ -44,8 +44,8 @@ object PageRank {
     
     val spark = SparkSession
       .builder()
+//      .master("local[*]")
       .appName("PageRankScalaSpark-" + args(0).substring(args(0).lastIndexOf("/") + 1))
-      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -76,13 +76,7 @@ object PageRank {
       f_rdd.unpersist(true)
       
       val p = mergeMatrix(w, f)
-      
-      println("linhas p: " + p.numRows())
-      println("colunas p: " + p.numCols())
-      
-      
 
-      
       val s_n_v = f.numRows()
       
       val s_i = f.numCols().toDouble / (w.numCols().toDouble * (f.numCols().toDouble + w.numCols().toDouble))
@@ -134,8 +128,11 @@ object PageRank {
      
       s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
       
-      s_n_final.entries.map(x=> (x.i,x.value)).join(entities_rdd).map(f => (f._2._2,f._2._1)).sortBy(f => f._2, false).repartition(1).saveAsTextFile(s_n_dest)
-      s_t_final.entries.map(x=> (x.i,x.value)).join(triples_rdd).map(f => (f._2._2,f._2._1)).sortBy(f => f._2, false).repartition(1).saveAsTextFile(s_t_dest)
+      sc.parallelize(s_n_final.entries.map(x=> (x.i,x.value)).join(entities_rdd).map(f => (f._2._2,f._2._1))
+        .sortBy(f => f._2, false).top(10000)).repartition(1).saveAsTextFile(s_n_dest)
+      
+      sc.parallelize(s_t_final.entries.map(x=> (x.i,x.value)).join(triples_rdd).map(f => (f._2._2,f._2._1))
+        .sortBy(f => f._2, false).top(10000)).repartition(1).saveAsTextFile(s_t_dest)
       
       val hareTime = (System.currentTimeMillis() - t2) / 1000
       
@@ -147,9 +144,6 @@ object PageRank {
       
       val rdd_statistics = sc.parallelize(statistics)
       rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
-      
-      println("Distance: " + distance)
-      println("Iterations: " + iter)
       
       spark.stop()
 

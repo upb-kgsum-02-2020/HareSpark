@@ -36,16 +36,14 @@ object Hare {
   var s_t_dest = "/results_hare/s_t"
   var statistics_dest = "/hare_statistics"
   var triples_src = "/entites/triples"
-  var entities_src = "/entites/entities"
-  
-  
+  var entities_src = "/entites/entities"  
   def main(args: Array[String]): Unit = {
     
    
     val spark = SparkSession
       .builder()
+//      .master("local[*]")
       .appName("HareScalaSpark-" + args(0).substring(args(0).lastIndexOf("/") + 1))
-      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -117,7 +115,7 @@ object Hare {
 
           distance = new BigDecimal(DistanceUtils.euclideanDistance(s_n_final.entries.map(f => f.value), s_n_previous.entries.map(f => f.value)))
           
-          iter = iter+1
+          iter = iter+ 1
           
           iter_list+=((System.currentTimeMillis() - time_iter_begin) / 1000)
         
@@ -129,8 +127,11 @@ object Hare {
       
    
       
-      s_n_final.entries.map(x=> (x.i,x.value)).join(entities_rdd).map(f => (f._2._2,f._2._1)).sortBy(f => f._2, false).repartition(1).saveAsTextFile(s_n_dest)
-      s_t_final.entries.map(x=> (x.i,x.value)).join(triples_rdd).map(f => (f._2._2,f._2._1)).sortBy(f => f._2, false).repartition(1).saveAsTextFile(s_t_dest)
+      sc.parallelize(s_n_final.entries.map(x=> (x.i,x.value)).join(entities_rdd).map(f => (f._2._2,f._2._1))
+        .sortBy(f => f._2, false).top(10000)).repartition(1).saveAsTextFile(s_n_dest)
+      
+      sc.parallelize(s_t_final.entries.map(x=> (x.i,x.value)).join(triples_rdd).map(f => (f._2._2,f._2._1))
+        .sortBy(f => f._2, false).top(10000)).repartition(1).saveAsTextFile(s_t_dest)
   
       
       val hareTime = (System.currentTimeMillis() - t2) / 1000
@@ -144,13 +145,7 @@ object Hare {
       val rdd_statistics = sc.parallelize(statistics)
       rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
       
-      
-//       sc.parallelize(s_n_final.toRowMatrix().rows.flatMap(f => f.toArray).zipWithIndex().map(f => (f._2 + "e",f._1))
-//      .union(s_t_final.toRowMatrix().rows.flatMap(f => f.toArray).zipWithIndex().map(f => (f._2 + "t",f._1)))
-//      .join(entities).map(f => (f._2._2,f._2._1)).sortBy((f => f._2),false).top(10000)).repartition(1).saveAsTextFile(results_dest)
-      
-      println("Distance: " + distance)
-      println("Iterations: " + iter)
+
       spark.stop()
   }
   

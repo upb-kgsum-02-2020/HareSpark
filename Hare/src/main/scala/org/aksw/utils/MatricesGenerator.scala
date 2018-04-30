@@ -9,14 +9,7 @@ import org.apache.spark.storage.StorageLevel
 
 object MatricesGenerator {
   
-//  /home/gsjunior/Downloads
-//  var sourcePath = "src/main/resources/sample_triples.nt"
-//  var sourcePath = "/home/gsjunior/Documentos/datasets/airports.nt"
-//  var w_dest = "src/main/resources/matrices/sample_triples/w.txt"
-//  var f_dest = "src/main/resources/matrices/sample_triples/f.txt"
-//  var edges_triples_dest = "src/main/resources/matrices/sample_triples/edges_triples.txt"
-//  var edges_resources_dest = "src/main/resources/matrices/sample_triples/edges_resources.txt"
-  
+ 
   var sourcePath = ""
   var w_dest = "/matrices/w"
   var f_dest = "/matrices/f"
@@ -30,7 +23,7 @@ object MatricesGenerator {
     
     val spark = SparkSession
       .builder()
-      .master("local[*]")
+//      .master("local[*]")
       .appName("MatrixGenerator")
       .getOrCreate()
       
@@ -76,8 +69,8 @@ object MatricesGenerator {
     val nodes_entities = nodes_subject_rdd.union(nodes_predicate_rdd).union(nodes_object_rdd)
     .distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"e"))
     
-    nodes_triples.map(x=> x._2.replaceAll("t", "") + "," + x._1).repartition(1).saveAsTextFile(entities_dest + "/triples")
-    nodes_entities.map(x=> x._2.replaceAll("e", "") + "," + x._1).repartition(1).saveAsTextFile(entities_dest+ "/entities")
+    nodes_triples.map(x=> x._2.replaceAll("t", "") + "," + x._1).saveAsTextFile(entities_dest + "/triples")
+    nodes_entities.map(x=> x._2.replaceAll("e", "") + "," + x._1).saveAsTextFile(entities_dest+ "/entities")
     
     var final_matrix = total_edges.join(nodes_triples).map(x=> x._2).join(nodes_entities).map{x => x._2}.persist(StorageLevel.MEMORY_AND_DISK_SER)
 
@@ -130,8 +123,8 @@ object MatricesGenerator {
       
       
        
-           w.repartition(1).saveAsTextFile(w_dest)
-           f.repartition(1).saveAsTextFile(f_dest)
+           w.saveAsTextFile(w_dest)
+           f.saveAsTextFile(f_dest)
       
      
       

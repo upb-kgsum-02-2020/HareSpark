@@ -10,7 +10,7 @@ object DistanceUtils {
       val spark = SparkSession
       .builder()
       .appName("Distance Utils")
-      .master("local[*]")
+//      .master("local[*]")
       .getOrCreate()
       
       val sc = spark.sparkContext

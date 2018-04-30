@@ -1,1 +1,7 @@
 /.cache-tests
+/.project
+/.externalToolBuilders/
+/.classpath
+/.gitignore
+/.scalastyle
+/target/
