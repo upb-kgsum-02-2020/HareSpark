@@ -35,7 +35,8 @@ object Hare {
   var s_n_dest = "/results_hare/s_n"
   var s_t_dest = "/results_hare/s_t"
   var statistics_dest = "/hare_statistics"
-  var entities_dest = "/entites"
+  var triples_src = "/entites/triples"
+  var entities_src = "/entites/entities"
   
   
   def main(args: Array[String]): Unit = {
@@ -54,7 +55,8 @@ object Hare {
        s_n_dest = args(0) + s_n_dest
        s_t_dest = args(0) + s_t_dest
        statistics_dest = args(0) + statistics_dest
-       entities_dest = args(0) + entities_dest
+       triples_src = args(0) + triples_src
+       entities_src = args(0) + entities_src
     
       val sc = spark.sparkContext
      
@@ -67,7 +69,8 @@ object Hare {
       var w = loadCoordinateMatrix(w_rdd)
       var f = loadCoordinateMatrix(f_rdd)
       
-//      val entities = sc.textFile(entities_dest).map(f =>(f.split(",")(0),f.split(",")(1)))
+     val triples_rdd = sc.textFile(triples_src).map(f =>(f.split(",")(0).toLong,f.split(",")(1)))
+     val entities_rdd = sc.textFile(entities_src).map(f =>(f.split(",")(0).toLong,f.split(",")(1)))
       
       val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
 
@@ -126,8 +129,8 @@ object Hare {
       
    
       
-      s_n_final.entries.repartition(1).saveAsTextFile(s_n_dest)
-      s_t_final.entries.repartition(1).saveAsTextFile(s_t_dest)
+      s_n_final.entries.map(x=> (x.i,x.value)).join(entities_rdd).map(f => (f._2._2,f._2._1)).sortBy(f => f._2, false).repartition(1).saveAsTextFile(s_n_dest)
+      s_t_final.entries.map(x=> (x.i,x.value)).join(triples_rdd).map(f => (f._2._2,f._2._1)).sortBy(f => f._2, false).repartition(1).saveAsTextFile(s_t_dest)
   
       
       val hareTime = (System.currentTimeMillis() - t2) / 1000

@@ -35,6 +35,9 @@ object PageRank {
   var s_n_dest = "/results_pagerank/s_n"
   var s_t_dest = "/results_pagerank/s_t"
   var statistics_dest = "/pagerank_statistics"
+  var triples_src = "/entites/triples"
+  var entities_src = "/entites/entities"
+  
   
   
   def main(args: Array[String]): Unit = {
@@ -42,7 +45,7 @@ object PageRank {
     val spark = SparkSession
       .builder()
       .appName("PageRankScalaSpark-" + args(0).substring(args(0).lastIndexOf("/") + 1))
-//      .master("local[*]")
+      .master("local[*]")
       .getOrCreate()
       
     import spark.implicits._
@@ -52,12 +55,17 @@ object PageRank {
        s_n_dest = args(0) + s_n_dest
        s_t_dest = args(0) + s_t_dest
        statistics_dest = args(0) + statistics_dest
+       triples_src = args(0) + triples_src
+       entities_src = args(0) + entities_src
     
       val sc = spark.sparkContext
      
       
       val w_rdd = sc.textFile(w_path)
       val f_rdd = sc.textFile(f_path)
+      
+      val triples_rdd = sc.textFile(triples_src).map(f =>(f.split(",")(0).toLong,f.split(",")(1)))
+      val entities_rdd = sc.textFile(entities_src).map(f =>(f.split(",")(0).toLong,f.split(",")(1)))
       
        
       val t1 = System.currentTimeMillis()
@@ -126,8 +134,8 @@ object PageRank {
      
       s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
       
-      //s_n_final.toRowMatrix().rows.saveAsTextFile(s_n_dest)
-      //s_t_final.toRowMatrix().rows.saveAsTextFile(s_t_dest)
+      s_n_final.entries.map(x=> (x.i,x.value)).join(entities_rdd).map(f => (f._2._2,f._2._1)).sortBy(f => f._2, false).repartition(1).saveAsTextFile(s_n_dest)
+      s_t_final.entries.map(x=> (x.i,x.value)).join(triples_rdd).map(f => (f._2._2,f._2._1)).sortBy(f => f._2, false).repartition(1).saveAsTextFile(s_t_dest)
       
       val hareTime = (System.currentTimeMillis() - t2) / 1000
       

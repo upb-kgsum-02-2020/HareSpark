@@ -76,7 +76,8 @@ object MatricesGenerator {
     val nodes_entities = nodes_subject_rdd.union(nodes_predicate_rdd).union(nodes_object_rdd)
     .distinct().zipWithIndex().map(f => (f._1,f._2.toString()+"e"))
     
-    nodes_triples.union(nodes_entities).map(x=> x._2 + "," + x._1).repartition(1).saveAsTextFile(entities_dest)
+    nodes_triples.map(x=> x._2.replaceAll("t", "") + "," + x._1).repartition(1).saveAsTextFile(entities_dest + "/triples")
+    nodes_entities.map(x=> x._2.replaceAll("e", "") + "," + x._1).repartition(1).saveAsTextFile(entities_dest+ "/entities")
     
     var final_matrix = total_edges.join(nodes_triples).map(x=> x._2).join(nodes_entities).map{x => x._2}.persist(StorageLevel.MEMORY_AND_DISK_SER)
 
