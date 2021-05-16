@@ -11,9 +11,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="scala-sdk-2.13.4-20201218-225751-system" level="application" />
     <orderEntry type="library" name="Maven: com.databricks:spark-csv_2.11:1.5.0" level="project" />
-    <orderEntry type="library" name="Maven: org.scala-lang:scala-library:2.11.7" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-csv:1.1" level="project" />
     <orderEntry type="library" name="Maven: com.univocity:univocity-parsers:2.1.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.spark:spark-core_2.11:2.2.1" level="project" />
@@ -232,5 +230,9 @@
     <orderEntry type="library" name="Maven: com.esotericsoftware:reflectasm:1.11.3" level="project" />
     <orderEntry type="library" name="Maven: org.ow2.asm:asm:5.0.4" level="project" />
     <orderEntry type="library" name="Maven: com.typesafe:config:1.3.1" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang:scala-library:2.12.7" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang.modules:scala-xml_2.12:1.1.1" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang.modules:scala-parser-combinators_2.12:1.1.1" level="project" />
+    <orderEntry type="library" name="Maven: org.scala-lang.modules:scala-swing_2.12:2.0.3" level="project" />
   </component>
 </module>
