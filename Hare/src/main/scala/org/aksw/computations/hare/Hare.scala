@@ -51,8 +51,12 @@ object Hare {
     val w = loadCoordinateMatrix(w_rdd)
     val f = loadCoordinateMatrix(f_rdd)
 
-    val triples_rdd = sc.textFile(triples_src).map(f => (f.split(",")(0).toLong, f.split(",")(1)))
-    val entities_rdd = sc.textFile(entities_src).map(f => (f.split(",")(0).toLong, f.split(",")(1)))
+    val strToTuple = (f: String) => {
+      val fs = f.split(",")
+      (fs(0).toLong, fs(1))
+    }
+    val triples_rdd = sc.textFile(triples_src).map(strToTuple)
+    val entities_rdd = sc.textFile(entities_src).map(strToTuple)
 
     val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
 
@@ -60,7 +64,7 @@ object Hare {
 
     val s_i = f.numCols().toDouble / (w.numCols().toDouble * (f.numCols().toDouble + w.numCols().toDouble))
 
-    val t = sc.parallelize(0 to f.numRows().toInt - 1)
+    val t = sc.parallelize(0 until f.numRows().toInt)
 
     var s_n_final = new CoordinateMatrix(t.map { x =>
       MatrixEntry(x, 0, s_i)
@@ -143,7 +147,7 @@ object Hare {
   def loadCoordinateMatrix(rdd: RDD[String]): CoordinateMatrix = {
     new CoordinateMatrix(rdd.map { x =>
       val a = x.split(",")
-      new MatrixEntry(a(0).toLong, a(1).toLong, a(2).toDouble)
+      MatrixEntry(a(0).toLong, a(1).toLong, a(2).toDouble)
     })
   }
 
