@@ -10,5 +10,9 @@
     <codeStyleSettings language="JAVA">
       <option name="RIGHT_MARGIN" value="80" />
     </codeStyleSettings>
+    <codeStyleSettings language="Scala">
+      <option name="METHOD_CALL_CHAIN_WRAP" value="5" />
+      <option name="WRAP_FIRST_METHOD_IN_CALL_CHAIN" value="true" />
+    </codeStyleSettings>
   </code_scheme>
 </component>

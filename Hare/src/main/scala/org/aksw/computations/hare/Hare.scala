@@ -98,7 +98,8 @@ object Hare {
         MatrixUtils.coordinateMatrixMultiply(a, s_n_previous),
         b)
 
-      distance = new BigDecimal(DistanceUtils.euclideanDistance(s_n_final.entries.map(f => f.value), s_n_previous.entries.map(f => f.value)))
+      distance = new BigDecimal(DistanceUtils
+        .euclideanDistance(s_n_final.entries.map(f => f.value), s_n_previous.entries.map(f => f.value)))
 
       iter = iter + 1
 

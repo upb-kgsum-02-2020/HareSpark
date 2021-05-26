@@ -72,7 +72,12 @@ object MatricesGenerator {
     nodes_triples.map(x => x._2.replaceAll("t", "") + "," + x._1).saveAsTextFile(entities_dest + "/triples")
     nodes_entities.map(x => x._2.replaceAll("e", "") + "," + x._1).saveAsTextFile(entities_dest + "/entities")
 
-    var final_matrix = total_edges.join(nodes_triples).map(x => x._2).join(nodes_entities).map { x => x._2 }.persist(StorageLevel.MEMORY_AND_DISK_SER)
+    var final_matrix = total_edges
+      .join(nodes_triples)
+      .map(x => x._2)
+      .join(nodes_entities)
+      .map { x => x._2 }
+      .persist(StorageLevel.MEMORY_AND_DISK_SER)
 
     val map_edges_triples = final_matrix.groupBy(x => x._1)
     val map_edges_resources = final_matrix.groupBy(x => x._2)
@@ -92,7 +97,10 @@ object MatricesGenerator {
 
         val me = new Array[MatrixEntry](values.size)
         for (a <- 0 to values.size - 1) {
-          val matrixEntry = new MatrixEntry(values(a)._1.replaceAll("t", "").toLong, values(a)._2.replaceAll("e", "").toLong, p)
+          val matrixEntry = new MatrixEntry(values(a)._1.replaceAll("t", "").toLong, values(a)
+            ._2
+            .replaceAll("e", "")
+            .toLong, p)
           me(a) = matrixEntry
         }
         me
@@ -107,7 +115,10 @@ object MatricesGenerator {
 
         val me = new Array[MatrixEntry](values.size)
         for (a <- 0 to values.size - 1) {
-          val matrixEntry = new MatrixEntry(values(a)._2.replaceAll("e", "").toLong, values(a)._1.replaceAll("t", "").toLong, p)
+          val matrixEntry = new MatrixEntry(values(a)._2.replaceAll("e", "").toLong, values(a)
+            ._1
+            .replaceAll("t", "")
+            .toLong, p)
           me(a) = matrixEntry
         }
 
