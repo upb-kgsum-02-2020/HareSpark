@@ -76,7 +76,7 @@ object MatricesGenerator {
       .map(x => x._2.replaceAll("e", "") + "," + x._1.replace("\n", "\\n"))
       .saveAsTextFile(entities_dest + "/entities")
 
-    var final_matrix = total_edges
+    val final_matrix = total_edges
       .join(nodes_triples)
       .map(x => x._2)
       .join(nodes_entities)
