@@ -42,8 +42,10 @@ object Hare {
 
     val sc = spark.sparkContext
 
-
+    // W and F transition matrices for finding P(N) -> S(N) -> S(T) -> S
+    // W, triples -> entities
     val w_rdd = sc.textFile(w_path)
+    // F, entities -> triples
     val f_rdd = sc.textFile(f_path)
 
     val t1 = System.currentTimeMillis()
@@ -55,22 +57,28 @@ object Hare {
       val fs = f.split(",")
       (fs(0).toLong, fs(1))
     }
+    // extract triples and entities along with their IDs
     val triples_rdd = sc.textFile(triples_src).map(strToTuple)
     val entities_rdd = sc.textFile(entities_src).map(strToTuple)
 
+    // transition matrix P(N)
     val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
 
     val s_n_v = f.numRows()
 
+    // S_0 initial entry value
     val s_i = f.numCols().toDouble / (w.numCols().toDouble * (f.numCols().toDouble + w.numCols().toDouble))
 
+    // sequence of entities
     val t = sc.parallelize(0 until f.numRows().toInt)
 
+    // initialize S_0 (column vector)
     var s_n_final = new CoordinateMatrix(t.map { x =>
       MatrixEntry(x, 0, s_i)
     })
 
 
+    // I
     val matrix_i = new CoordinateMatrix(t.map { x =>
       MatrixEntry(x, 0, 1)
     })
@@ -147,6 +155,7 @@ object Hare {
   def loadCoordinateMatrix(rdd: RDD[String]): CoordinateMatrix = {
     new CoordinateMatrix(rdd.map { x =>
       val a = x.split(",")
+      // MatrixEntry(i, j, A_ij)
       MatrixEntry(a(0).toLong, a(1).toLong, a(2).toDouble)
     })
   }
