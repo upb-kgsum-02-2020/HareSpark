@@ -131,8 +131,8 @@ object Hare {
       a.map(x => (x.i, x.value)).join(b).map(f => (f._2._2, f._2._1))
     }
 
-//    sc.parallelize(topScores(joinAndMap(s_n_final.entries, entities_rdd))).repartition(1).saveAsTextFile(s_n_dest)
-//    sc.parallelize(topScores(joinAndMap(s_t_final.entries, triples_rdd))).repartition(1).saveAsTextFile(s_t_dest)
+    //    sc.parallelize(topScores(joinAndMap(s_n_final.entries, entities_rdd))).repartition(1).saveAsTextFile(s_n_dest)
+    //    sc.parallelize(topScores(joinAndMap(s_t_final.entries, triples_rdd))).repartition(1).saveAsTextFile(s_t_dest)
     val (s_n_mean, s_n_orig) = aboveMean(joinAndMap(s_n_final.entries, entities_rdd))
     val (s_t_mean, s_t_orig) = aboveMean(joinAndMap(s_t_final.entries, triples_rdd))
     s_n_orig.repartition(1).saveAsTextFile(s_n_destWithProbs)
