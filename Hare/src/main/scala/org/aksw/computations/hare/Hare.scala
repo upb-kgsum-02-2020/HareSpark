@@ -171,9 +171,9 @@ object Hare {
 
   def loadCoordinateMatrix(rdd: RDD[String]): CoordinateMatrix = {
     new CoordinateMatrix(rdd.map { x =>
-      val a = x.split(",")
+      val Array(a, b, c) = x.split(",", 3)
       // MatrixEntry(i, j, A_ij)
-      MatrixEntry(a(0).toLong, a(1).toLong, a(2).toDouble)
+      MatrixEntry(a.toLong, b.toLong, c.toDouble)
     })
   }
 
