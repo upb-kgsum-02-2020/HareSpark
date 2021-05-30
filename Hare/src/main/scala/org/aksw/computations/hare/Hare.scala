@@ -58,7 +58,7 @@ object Hare {
     val f = loadCoordinateMatrix(f_rdd)
 
     val strToTuple = (f: String) => {
-      val fs = f.split(",")
+      val fs = f.split(",", 2)
       (fs(0).toLong, fs(1))
     }
     // extract triples and entities along with their IDs
