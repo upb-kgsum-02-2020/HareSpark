@@ -137,8 +137,13 @@ object Hare {
     val (s_t_mean, s_t_orig) = aboveMean(joinAndMap(s_t_final.entries, triples_rdd))
     s_n_orig.repartition(1).saveAsTextFile(s_n_destWithProbs)
     s_t_orig.repartition(1).saveAsTextFile(s_t_destWithProbs)
-    s_n_orig.map(f => f._1).repartition(1).saveAsTextFile(s_n_dest)
-    s_t_orig.map(f => f._1).repartition(1).saveAsTextFile(s_t_dest)
+//    s_n_orig.map(f => f._1).repartition(1).saveAsTextFile(s_n_dest)
+
+    val toTriple = (f: String) => {
+      val Array(a, b, c) = f.split(" ", 3)
+      s"<$a> <${b.substring(1)}> ${if (c.startsWith("\"")) c else s"<$c>"} ."
+    }
+    s_t_orig.map(f => f._1).map(toTriple).repartition(1).saveAsTextFile(s_t_dest)
 
 
     val hareTime = (System.currentTimeMillis() - t2) / 1000
