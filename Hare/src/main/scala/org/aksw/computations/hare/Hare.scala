@@ -17,6 +17,7 @@ object Hare {
 
   var w_path = "/matrices/w"
   var f_path = "/matrices/f"
+  var test_dir = "/results_hare/test_dir"
   var s_n_destWithProbs = "/results_hare/s_n-with-probs"
   var s_t_destWithProbs = "/results_hare/s_t-with-probs"
   var s_n_dest = "/results_hare/s_n"
@@ -36,6 +37,7 @@ object Hare {
 
     w_path = args(0) + w_path
     f_path = args(0) + f_path
+    test_dir = args(0) + test_dir
     s_n_destWithProbs = args(0) + s_n_destWithProbs
     s_t_destWithProbs = args(0) + s_t_destWithProbs
     s_n_dest = args(0) + s_n_dest
@@ -131,19 +133,21 @@ object Hare {
       a.map(x => (x.i, x.value)).join(b).map(f => (f._2._2, f._2._1))
     }
 
+    val s_t = joinAndMap(s_t_final.entries, triples_rdd)
+    s_t.sortBy(f => f._2, ascending = false).repartition(1).saveAsTextFile(test_dir)
     //    sc.parallelize(topScores(joinAndMap(s_n_final.entries, entities_rdd))).repartition(1).saveAsTextFile(s_n_dest)
     //    sc.parallelize(topScores(joinAndMap(s_t_final.entries, triples_rdd))).repartition(1).saveAsTextFile(s_t_dest)
-    val (s_n_mean, s_n_orig) = aboveMean(joinAndMap(s_n_final.entries, entities_rdd))
-    val (s_t_mean, s_t_orig) = aboveMean(joinAndMap(s_t_final.entries, triples_rdd))
-    s_n_orig.repartition(1).saveAsTextFile(s_n_destWithProbs)
-    s_t_orig.repartition(1).saveAsTextFile(s_t_destWithProbs)
+//    val (s_n_mean, s_n_orig) = aboveMean(joinAndMap(s_n_final.entries, entities_rdd))
+//    val (s_t_mean, s_t_orig) = aboveMean(joinAndMap(s_t_final.entries, triples_rdd))
+//    s_n_orig.repartition(1).saveAsTextFile(s_n_destWithProbs)
+//    s_t_orig.repartition(1).saveAsTextFile(s_t_destWithProbs)
 //    s_n_orig.map(f => f._1).repartition(1).saveAsTextFile(s_n_dest)
 
-    val toTriple = (f: String) => {
-      val Array(a, b, c) = f.split(" ", 3)
-      s"<$a> <${b.substring(1)}> ${if (c.startsWith("\"")) c else s"<$c>"} ."
-    }
-    s_t_orig.map(f => f._1).map(toTriple).repartition(1).saveAsTextFile(s_t_dest)
+//    val toTriple = (f: String) => {
+//      val Array(a, b, c) = f.split(" ", 3)
+//      s"<$a> <${b.substring(1)}> ${if (c.startsWith("\"")) c else s"<$c>"} ."
+//    }
+//    s_t_orig.map(f => f._1).map(toTriple).repartition(1).saveAsTextFile(s_t_dest)
 
 
     val hareTime = (System.currentTimeMillis() - t2) / 1000
@@ -153,8 +157,8 @@ object Hare {
     statistics += "Iteration avg time: " + computeIterTimeMean(iter_list)
     statistics += "Hare Computation Time: " + hareTime
     statistics += "Matrices Load Time: " + matrixLoadTime
-    statistics += "Entities mean: " + s_n_mean
-    statistics += "Triples mean: " + s_t_mean
+//    statistics += "Entities mean: " + s_n_mean
+//    statistics += "Triples mean: " + s_t_mean
 
     val rdd_statistics = sc.parallelize(statistics)
     rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
