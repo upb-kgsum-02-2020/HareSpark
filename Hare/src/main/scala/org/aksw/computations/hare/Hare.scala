@@ -141,7 +141,15 @@ object Hare {
 
     val toTriple = (f: String) => {
       val Array(a, b, c) = f.split(" ", 3)
-      s"<$a> <${b.substring(1)}> ${if (c.startsWith("\"")) c else s"<$c>"} ."
+      val literalArray = c.split("\\^\\^", 2)
+
+      s"<$a> <${b.substring(1)}> ${
+        if (c.startsWith("\"")) {
+          if (literalArray.length > 1) s"${literalArray(0)}^^<${literalArray(1)}>" else c
+        } else {
+          s"<$c>"
+        }
+      } ."
     }
     s_t_orig.map(f => f._1).map(toTriple).repartition(1).saveAsTextFile(s_t_dest)
 
