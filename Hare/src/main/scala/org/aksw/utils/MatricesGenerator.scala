@@ -1,11 +1,11 @@
 package org.aksw.utils
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.mllib.linalg.distributed.MatrixEntry
-import scala.collection.mutable.ListBuffer
-import org.apache.spark.rdd.RDD.rddToOrderedRDDFunctions
 import net.sansa_stack.rdf.spark.io.NTripleReader
+import org.apache.spark.mllib.linalg.distributed.MatrixEntry
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
+
+import scala.collection.mutable.ListBuffer
 
 object MatricesGenerator {
 
@@ -26,8 +26,6 @@ object MatricesGenerator {
       //      .master("local[*]")
       .appName("MatrixGenerator")
       .getOrCreate()
-
-    import spark.implicits._
 
     sourcePath = args(0) + sourcePath
     w_dest = args(1) + w_dest
@@ -70,10 +68,10 @@ object MatricesGenerator {
       .distinct().zipWithIndex().map(f => (f._1, f._2.toString() + "e"))
 
     nodes_triples
-      .map(x => x._2.replaceAll("t", "") + "," + x._1.replace("\n", "\\n"))
+      .map(x => s"${x._2.replace("t", "")},${escapeTriple(x._1)}")
       .saveAsTextFile(entities_dest + "/triples")
     nodes_entities
-      .map(x => x._2.replaceAll("e", "") + "," + x._1.replace("\n", "\\n"))
+      .map(x => s"${x._2.replace("e", "")},${escapeEntity(x._1)}")
       .saveAsTextFile(entities_dest + "/entities")
 
     val final_matrix = total_edges
