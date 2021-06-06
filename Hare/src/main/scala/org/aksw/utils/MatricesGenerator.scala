@@ -39,46 +39,29 @@ object MatricesGenerator {
 
     val t1 = System.currentTimeMillis()
 
-    val sansa_triples = NTripleReader.load(spark, sourcePath)
+    val triples = NTripleReader.load(spark, sourcePath)
 
-    //Creating rdd's for nodes
-    val nodes_triples_rdd = sansa_triples.map(f => f.toString())
+    val subjects = triples.map(_.getSubject)
+    val predicates = triples.map(_.getPredicate)
+    val objects = triples.map(_.getObject)
 
-    val nodes_subject_rdd = sansa_triples.map(f => f.getSubject.toString())
-    val nodes_predicate_rdd = sansa_triples.map(f => f.getPredicate.toString())
-    val nodes_object_rdd = sansa_triples.map(f => f.getObject.toString())
+    val triplesWithId = triples.distinct().zipWithIndex()
+    val entitiesWithId = subjects.union(predicates).union(objects).distinct().zipWithIndex()
 
-    //Creating rdd's for edges    
+    println("Zipped triples and entities")
 
+    val switchPlacesTuple = (x: (Any, Any)) => (x._2, x._1)
+    triplesWithId.map(switchPlacesTuple).saveAsObjectFile(s"$entities_dest/triples")
+    entitiesWithId.map(switchPlacesTuple).saveAsObjectFile(s"$entities_dest/entities")
 
-    val total_edges = sansa_triples.map {
-      f =>
-        Array(
-          (f.toString(), f.getSubject.toString),
-          (f.toString(), f.getPredicate.toString),
-          (f.toString(), f.getObject.toString)
-        )
-    }.flatMap(f => f)
+    println("Saved nodes and triples")
 
-
-    // Creating rdd's for nodes and edges
-
-    val nodes_triples = nodes_triples_rdd.distinct().zipWithIndex().map(f => (f._1, f._2.toString() + "t"))
-    val nodes_entities = nodes_subject_rdd.union(nodes_predicate_rdd).union(nodes_object_rdd)
-      .distinct().zipWithIndex().map(f => (f._1, f._2.toString() + "e"))
-
-    nodes_triples
-      .map(x => s"${x._2.replace("t", "")},${escapeTriple(x._1)}")
-      .saveAsTextFile(entities_dest + "/triples")
-    nodes_entities
-      .map(x => s"${x._2.replace("e", "")},${escapeEntity(x._1)}")
-      .saveAsTextFile(entities_dest + "/entities")
-
+    val total_edges = triples.flatMap { f => Array((f, f.getSubject), (f, f.getPredicate), (f, f.getObject)) }
     val final_matrix = total_edges
-      .join(nodes_triples)
-      .map(x => x._2)
-      .join(nodes_entities)
-      .map { x => x._2 }
+      .join(triplesWithId) // (triple, (sub_pred_obj, index_t))
+      .map(_._2) // (sub, index_t) or (pred, index_t) or (obj, index_t)
+      .join(entitiesWithId) // (sub_pred_obj, (index_t, index_e))
+      .map(_._2) // (index_t, index_e)
       .persist(StorageLevel.MEMORY_AND_DISK_SER)
 
     val map_edges_triples = final_matrix.groupBy(x => x._1)
@@ -91,49 +74,25 @@ object MatricesGenerator {
 
     val t2 = System.currentTimeMillis()
 
-    val w_rdd = map_edges_triples.map {
-      x =>
-        val p = 1.0 / x._2.size.toDouble
+    val w = map_edges_triples
+      .flatMap(x => x._2.map(v => MatrixEntry(v._1, v._2, 1.0 / x._2.size.toDouble)))
+      .filter(f => f != null)
 
-        val values = x._2.toArray
+    val f = map_edges_resources
+      .flatMap(x => x._2.map(v => MatrixEntry(v._2, v._1, 1.0 / x._2.size.toDouble)))
+      .filter(f => f != null)
 
-        val me = new Array[MatrixEntry](values.size)
-        for (a <- 0 to values.size - 1) {
-          val matrixEntry = new MatrixEntry(values(a)._1.replaceAll("t", "").toLong, values(a)
-            ._2
-            .replaceAll("e", "")
-            .toLong, p)
-          me(a) = matrixEntry
-        }
-        me
-    }.flatMap(f => f).filter(f => f != null)
+    println("Constructed matrices")
 
+    val toReadable = (x: MatrixEntry) => s"${x.i},${x.j},${x.value}"
 
-    val f_rdd = map_edges_resources.map {
-      x =>
-        val p = 1.0 / x._2.size.toDouble
+    w.saveAsObjectFile(w_dest)
+    f.saveAsObjectFile(f_dest)
 
-        val values = x._2.toArray
+    w.map(toReadable).saveAsTextFile(s"$w_dest/readable")
+    f.map(toReadable).saveAsTextFile(s"$f_dest/readable")
 
-        val me = new Array[MatrixEntry](values.size)
-        for (a <- 0 to values.size - 1) {
-          val matrixEntry = new MatrixEntry(values(a)._2.replaceAll("e", "").toLong, values(a)
-            ._1
-            .replaceAll("t", "")
-            .toLong, p)
-          me(a) = matrixEntry
-        }
-
-
-        me
-    }.flatMap(f => f).filter(f => f != null)
-
-    val w = w_rdd.map { x => x.i + "," + x.j + "," + x.value }
-    val f = f_rdd.map { x => x.i + "," + x.j + "," + x.value }
-
-
-    w.saveAsTextFile(w_dest)
-    f.saveAsTextFile(f_dest)
+    println("Saved matrices")
 
 
     val matrixTime = (System.currentTimeMillis() - t2) / 1000
