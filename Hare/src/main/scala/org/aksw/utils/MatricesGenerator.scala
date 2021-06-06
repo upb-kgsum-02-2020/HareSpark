@@ -16,7 +16,7 @@ object MatricesGenerator {
   var edges_triples_dest = "/matrices/edges_triples"
   var edges_resources_dest = "/matrices/edges_resources"
   var statistics_dest = "/statistics"
-  var entities_dest = "/entites"
+  var entities_dest = "/entities"
 
 
   def main(args: Array[String]): Unit = {

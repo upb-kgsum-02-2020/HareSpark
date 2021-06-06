@@ -1,9 +1,12 @@
 package org.aksw.computations.hare
 
-import org.aksw.utils.{DistanceUtils, MatrixUtils, escapeEntity, escapeTriple}
+import net.sansa_stack.rdf.spark.io.rdf.RDFWriter
+import org.aksw.utils.{DistanceUtils, MatrixUtils}
 import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, MatrixEntry}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.apache.jena.graph.Triple
+import org.apache.jena.graph.Node
 
 import java.math.BigDecimal
 import scala.collection.mutable.ListBuffer
@@ -18,11 +21,10 @@ object Hare {
   var f_path = "/matrices/f"
   var s_n_destWithProbs = "/results_hare/s_n-with-probs"
   var s_t_destWithProbs = "/results_hare/s_t-with-probs"
-  //  var s_n_dest = "/results_hare/s_n"
   var s_t_dest = "/results_hare/s_t"
   var statistics_dest = "/hare_statistics"
-  var triples_src = "/entites/triples"
-  var entities_src = "/entites/entities"
+  var triples_src = "/entities/triples"
+  var entities_src = "/entities/entities"
 
   def main(args: Array[String]): Unit = {
 
@@ -46,23 +48,13 @@ object Hare {
     val sc = spark.sparkContext
 
     // W and F transition matrices for finding P(N) -> S(N) -> S(T) -> S
-    // W, triples -> entities
-    val w_rdd = sc.textFile(w_path)
-    // F, entities -> triples
-    val f_rdd = sc.textFile(f_path)
+    val w = new CoordinateMatrix(sc.objectFile(w_path))
+    val f = new CoordinateMatrix(sc.objectFile(f_path))
 
     val t1 = System.currentTimeMillis()
 
-    val w = loadCoordinateMatrix(w_rdd)
-    val f = loadCoordinateMatrix(f_rdd)
-
-    val strToTuple = (f: String) => {
-      val fs = f.split(",", 2)
-      (fs(0).toLong, fs(1))
-    }
-    // extract triples and entities along with their IDs
-    val triples_rdd = sc.textFile(triples_src).map(strToTuple)
-    val entities_rdd = sc.textFile(entities_src).map(strToTuple)
+    val triplesWithId: RDD[(Long, Triple)] = sc.objectFile(triples_src)
+    val entitiesWithId: RDD[(Long, Node)] = sc.objectFile(entities_src)
 
     // transition matrix P(N)
     val p_n = MatrixUtils.coordinateMatrixMultiply(f, w)
@@ -80,7 +72,6 @@ object Hare {
       MatrixEntry(x, 0, s_i)
     })
 
-
     // I
     val matrix_i = new CoordinateMatrix(t.map { x =>
       MatrixEntry(x, 0, 1)
@@ -89,9 +80,7 @@ object Hare {
     val matrixLoadTime = (System.currentTimeMillis() - t1) / 1000
 
     var s_t_final = s_n_final
-
     var s_n_previous = s_n_final
-
 
     val epsilon = new BigDecimal(0.001)
     var distance = new BigDecimal(1)
@@ -122,29 +111,25 @@ object Hare {
 
     }
 
-
     System.gc()
     s_t_final = MatrixUtils.coordinateMatrixMultiply(f.transpose(), s_n_final)
 
-    val joinAndMap = (a: RDD[MatrixEntry], b: RDD[(Long, String)]) => {
-      a.map(x => (x.i, x.value)).join(b).map(f => (f._2._2, f._2._1))
-    }
+    val (s_n_mean, s_n) = aboveMean[Node](s_n_final
+      .entries
+      .map(matrixEntryToTuple)
+      .join(entitiesWithId)
+      .map(extractAndSwitch[Node]))
 
-    //    sc.parallelize(topScores(joinAndMap(s_n_final.entries, entities_rdd))).repartition(1).saveAsTextFile(s_n_dest)
-    //    sc.parallelize(topScores(joinAndMap(s_t_final.entries, triples_rdd))).repartition(1).saveAsTextFile(s_t_dest)
+    s_n.repartition(1).saveAsTextFile(s_n_destWithProbs)
 
-    val (s_n_mean, s_n_orig) = aboveMean(joinAndMap(s_n_final.entries, entities_rdd))
-    val s_n_escaped = s_n_orig.map(f => (escapeEntity(f._1, format = true), f._2))
+    val (s_t_mean, s_t) = aboveMean[Triple](s_t_final
+      .entries
+      .map(matrixEntryToTuple)
+      .join(triplesWithId)
+      .map(extractAndSwitch[Triple]))
 
-    s_n_escaped.repartition(1).saveAsTextFile(s_n_destWithProbs)
-    //    s_n_escaped.map(f => f._1).repartition(1).saveAsTextFile(s_n_dest)
-
-
-    val (s_t_mean, s_t_orig) = aboveMean(joinAndMap(s_t_final.entries, triples_rdd))
-    val s_t_escaped = s_t_orig.map(f => (escapeTriple(f._1, format = true), f._2))
-    s_t_escaped.repartition(1).saveAsTextFile(s_t_destWithProbs)
-    s_t_escaped.map(f => f._1).repartition(1).saveAsTextFile(s_t_dest)
-
+    s_t.repartition(1).saveAsTextFile(s_t_destWithProbs)
+    s_t.map(_._1).repartition(1).saveAsNTriplesFile(s_t_dest)
 
     val hareTime = (System.currentTimeMillis() - t2) / 1000
 
@@ -159,7 +144,6 @@ object Hare {
     val rdd_statistics = sc.parallelize(statistics)
     rdd_statistics.repartition(1).saveAsTextFile(statistics_dest)
 
-
     spark.stop()
   }
 
@@ -169,15 +153,7 @@ object Hare {
     sum.toDouble / list.size.toDouble
   }
 
-  def loadCoordinateMatrix(rdd: RDD[String]): CoordinateMatrix = {
-    new CoordinateMatrix(rdd.map { x =>
-      val Array(a, b, c) = x.split(",", 3)
-      // MatrixEntry(i, j, A_ij)
-      MatrixEntry(a.toLong, b.toLong, c.toDouble)
-    })
-  }
-
-  def aboveMean(rdd: RDD[(String, Double)]): (Double, RDD[(String, Double)]) = {
+  def aboveMean[T](rdd: RDD[(T, Double)]): (Double, RDD[(T, Double)]) = {
     val mean = rdd.map(f => f._2).reduce { case (a, b) => a + b } / rdd.count()
     (mean, rdd.filter(f => f._2 > mean))
   }
@@ -185,4 +161,8 @@ object Hare {
   def topScores(rdd: RDD[(String, Double)]): Array[(String, Double)] = {
     rdd.sortBy(f => f._2, ascending = false).top(10000)
   }
+
+  def matrixEntryToTuple(me: MatrixEntry) = (me.i, me.value)
+  def extractAndSwitch[T](x: (Long, (Double, T))) =  (x._2._2, x._2._1)
+
 }
